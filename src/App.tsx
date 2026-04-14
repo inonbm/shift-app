@@ -5,8 +5,8 @@ import { ProtectedRoute } from './components/ui/ProtectedRoute';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { AppLayout } from './components/layout/AppLayout';
 
-// Placeholders for Phase 1
-import { LoginPage, TrainerDashboard, DietView } from './features/placeholders';
+import { TrainerDashboard, DietView } from './features/placeholders';
+import { LoginPage } from './features/auth/LoginPage';
 
 function App() {
   const { initialize, isLoading, user, profile } = useAuthStore();
