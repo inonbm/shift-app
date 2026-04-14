@@ -9,6 +9,7 @@ import { DietView } from './features/placeholders';
 import { LoginPage } from './features/auth/LoginPage';
 import { TrainerDashboard } from './features/trainer/TrainerDashboard';
 import { TraineeForm } from './features/trainer/TraineeForm';
+import { FoodsManager } from './features/trainer/FoodsManager';
 
 function App() {
   const { initialize, isLoading, user, profile } = useAuthStore();
@@ -60,7 +61,14 @@ function App() {
               </ProtectedRoute>
             } 
           />
-
+          <Route 
+            path="/trainer/foods" 
+            element={
+              <ProtectedRoute requiredRole="trainer">
+                <FoodsManager />
+              </ProtectedRoute>
+            } 
+          />
           {/* Trainee Routes */}
           <Route 
             path="/diet/*" 

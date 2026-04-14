@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import type { GeneratedMeal } from '../types';
+import { useTraineeStore } from './traineeStore';
+import { useFoodStore } from './foodStore';
+import { generateDietPlan } from '../lib/dietGenerator';
 
 interface DietState {
   /** The 4 generated meals for the current trainee */
@@ -10,6 +13,9 @@ interface DietState {
 
   /** Load cached diet from database */
   fetchDiet: (traineeId: string) => Promise<void>;
+
+  /** Full algorithm: generate meals, save to DB, and update state */
+  generateDiet: (traineeId: string) => Promise<void>;
 
   /** Save generated meals to database (replaces existing) */
   saveDiet: (traineeId: string, meals: GeneratedMeal[]) => Promise<void>;
@@ -44,6 +50,64 @@ export const useDietStore = create<DietState>((set) => ({
       set({
         isLoading: false,
         error: error instanceof Error ? error.message : 'Failed to fetch diet',
+      });
+    }
+  },
+
+  generateDiet: async (traineeId: string) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      // Ensure stores are populated
+      await useTraineeStore.getState().fetchTraineeById(traineeId);
+      const trainee = useTraineeStore.getState().currentTrainee;
+      if (!trainee || !trainee.trainee_data) {
+        throw new Error('Trainee data not found');
+      }
+
+      await useFoodStore.getState().fetchFoods();
+      const foods = useFoodStore.getState().foods;
+      if (!foods || foods.length === 0) {
+        throw new Error('No foods found in database. Please add foods first.');
+      }
+
+      const { goal_calories, protein_grams, carbs_grams, fat_grams } = trainee.trainee_data;
+
+      // 1. Generate the plan using the core algorithm
+      const generatedMeals = generateDietPlan(
+        traineeId,
+        goal_calories,
+        protein_grams,
+        carbs_grams,
+        fat_grams,
+        foods
+      );
+
+      // Clean the temporary UUIDs before inserting into Supabase
+      const mealsToInsert = generatedMeals.map(({ id, ...rest }) => rest);
+
+      // 2. Clear old meals
+      const { error: deleteError } = await supabase
+        .from('generated_meals')
+        .delete()
+        .eq('trainee_id', traineeId);
+
+      if (deleteError) throw deleteError;
+
+      // 3. Save new meals
+      const { data: savedMeals, error: insertError } = await supabase
+        .from('generated_meals')
+        .insert(mealsToInsert)
+        .select('*');
+
+      if (insertError) throw insertError;
+
+      set({ meals: savedMeals as GeneratedMeal[], isLoading: false });
+    } catch (error) {
+      console.error('Failed to generate diet:', error);
+      set({
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to generate diet',
       });
     }
   },
