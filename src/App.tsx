@@ -4,12 +4,11 @@ import { useAuthStore } from './stores/authStore';
 import { ProtectedRoute } from './components/ui/ProtectedRoute';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { AppLayout } from './components/layout/AppLayout';
-
-import { DietView } from './features/placeholders';
 import { LoginPage } from './features/auth/LoginPage';
 import { TrainerDashboard } from './features/trainer/TrainerDashboard';
 import { TraineeForm } from './features/trainer/TraineeForm';
 import { FoodsManager } from './features/trainer/FoodsManager';
+import { DietView } from './features/trainee/DietView';
 
 function App() {
   const { initialize, isLoading, user, profile } = useAuthStore();

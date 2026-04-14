@@ -22,7 +22,7 @@ A full-stack web application for personalized diet planning and workout tracking
 - [x] **Phase 2** — Auth System
 - [x] **Phase 3** — Trainer Dashboard + Math Logic
 - [x] **Phase 4** — Foods DB + Diet Generator Algorithm
-- [ ] Phase 5 — Trainee View — Dynamic Diet Display
+- [x] **Phase 5** — Trainee View — Dynamic Diet Display
 - [ ] Phase 6 — AI Recipe Generator
 - [ ] Phase 7 — Workout Tracker
 - [ ] Phase 8 — Deployment & Final README
