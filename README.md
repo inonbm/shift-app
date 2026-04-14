@@ -23,7 +23,7 @@ A full-stack web application for personalized diet planning and workout tracking
 - [x] **Phase 3** — Trainer Dashboard + Math Logic
 - [x] **Phase 4** — Foods DB + Diet Generator Algorithm
 - [x] **Phase 5** — Trainee View — Dynamic Diet Display
-- [ ] Phase 6 — AI Recipe Generator
+- [x] **Phase 6** — AI Recipe Generator
 - [ ] Phase 7 — Workout Tracker
 - [ ] Phase 8 — Deployment & Final README
 
@@ -70,6 +70,26 @@ npm run dev
 ```
 
 The app will be available at `http://localhost:5173`.
+
+### Database Setup
+
+Execute the two SQL files in your Supabase SQL Editor:
+1. `supabase/migrations/001_initial_schema.sql` (Creates tables, triggers, and RLS policies)
+2. `supabase/migrations/002_seed_foods.sql` (Populates the foods database)
+
+Then configure your first user as a `trainer` to unlock dashboard features.
+
+### Deploying Edge Functions (Gemini AI)
+
+The AI recipe generator securely runs on a Supabase Edge Function to protect your Google Gemini API key.
+To deploy it to your Supabase project, install the [Supabase CLI](https://supabase.com/docs/guides/cli) and run:
+
+```bash
+supabase login
+supabase link --project-ref your-project-ref
+supabase secrets set GEMINI_API_KEY=your_gemini_api_key
+supabase functions deploy generate-recipe
+```
 
 ## License
 

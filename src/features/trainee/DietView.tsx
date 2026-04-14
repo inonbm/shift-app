@@ -1,9 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Flame, Dumbbell, Droplet, Activity, ChevronDown, ChevronUp, Coffee, Loader2 } from 'lucide-react';
+import { Flame, Dumbbell, Droplet, Activity, ChevronDown, ChevronUp, Coffee, Loader2, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { useDietStore } from '../../stores/dietStore';
 import type { MealFoodOption } from '../../types';
+import { RecipeModal } from './RecipeModal';
+import { generateRecipeWithAI } from '../../lib/gemini';
+
+// Helper type for selection
+type MealSelection = {
+  carb?: MealFoodOption;
+  protein?: MealFoodOption;
+  fat?: MealFoodOption;
+};
 
 export function DietView() {
   const { user } = useAuthStore();
@@ -11,6 +20,13 @@ export function DietView() {
   const { fetchDiet, meals, isLoading: isDietLoading } = useDietStore();
 
   const [expandedMeals, setExpandedMeals] = useState<Record<string, boolean>>({});
+  const [selections, setSelections] = useState<Record<string, MealSelection>>({});
+  
+  // AI Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAILoading, setIsAILoading] = useState(false);
+  const [recipeResult, setRecipeResult] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMyData();
@@ -27,6 +43,41 @@ export function DietView() {
       ...prev,
       [mealId]: !prev[mealId]
     }));
+  };
+
+  const handleSelectOption = (mealId: string, category: keyof MealSelection, option: MealFoodOption) => {
+    setSelections(prev => ({
+      ...prev,
+      [mealId]: {
+        ...(prev[mealId] || {}),
+        [category]: prev[mealId]?.[category]?.food_id === option.food_id ? undefined : option // Toggle off if clicked again
+      }
+    }));
+  };
+
+  const handleGenerateRecipe = async (mealId: string) => {
+    const mealSelection = selections[mealId];
+    if (!mealSelection || !mealSelection.carb || !mealSelection.protein || !mealSelection.fat) return;
+
+    setIsModalOpen(true);
+    setIsAILoading(true);
+    setAiError(null);
+    setRecipeResult(null);
+
+    try {
+      const ingredients = [
+        { name: mealSelection.carb.food_name, grams: mealSelection.carb.grams },
+        { name: mealSelection.protein.food_name, grams: mealSelection.protein.grams },
+        { name: mealSelection.fat.food_name, grams: mealSelection.fat.grams },
+      ];
+      
+      const recipe = await generateRecipeWithAI(ingredients);
+      setRecipeResult(recipe);
+    } catch (err: any) {
+      setAiError(err.message || 'אירעה שגיאה בלתי צפויה');
+    } finally {
+      setIsAILoading(false);
+    }
   };
 
   const isLoading = isTraineeLoading || isDietLoading;
@@ -57,28 +108,57 @@ export function DietView() {
     );
   }
 
-  const OptionColumn = ({ title, options, bgClass, labelClass }: { title: string, options: MealFoodOption[], bgClass: string, labelClass: string }) => (
-    <div className={`p-4 rounded-xl border border-slate-100 ${bgClass}`}>
-      <h4 className={`text-sm font-bold mb-3 border-b border-white/40 pb-2 ${labelClass}`}>{title}</h4>
-      <div className="space-y-3">
-        {options.map((opt, i) => (
-          <div key={i} className="bg-white/60 p-3 rounded-lg flex items-start gap-3 relative overflow-hidden group hover:bg-white transition-colors border border-white/50">
-            <div className={`w-1 h-full absolute right-0 top-0 ${labelClass.replace('text-', 'bg-')} opacity-50`} />
-            <div className="flex-1 pr-2">
-              <p className="font-bold text-slate-800 text-sm leading-tight">{opt.food_name}</p>
-              <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-500 font-medium">
-                <span className="bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">{opt.grams} גרם</span>
-                <span className="text-slate-400">({opt.calories} קק״ל)</span>
-              </div>
-            </div>
-          </div>
-        ))}
-        {options.length === 0 && (
-          <p className="text-xs text-slate-400 italic">לא נבחרו מקורות</p>
-        )}
+  const OptionColumn = ({ 
+    mealId, 
+    categoryKey, 
+    title, 
+    options, 
+    bgClass, 
+    labelClass 
+  }: { 
+    mealId: string, 
+    categoryKey: keyof MealSelection, 
+    title: string, 
+    options: MealFoodOption[], 
+    bgClass: string, 
+    labelClass: string 
+  }) => {
+    const selectedOption = selections[mealId]?.[categoryKey];
+
+    return (
+      <div className={`p-4 rounded-xl border border-slate-100 ${bgClass}`}>
+        <h4 className={`text-sm font-bold mb-3 border-b border-white/40 pb-2 ${labelClass}`}>{title}</h4>
+        <div className="space-y-3">
+          {options.map((opt, i) => {
+            const isSelected = selectedOption?.food_id === opt.food_id;
+            return (
+              <button 
+                key={i} 
+                onClick={() => handleSelectOption(mealId, categoryKey, opt)}
+                className={`w-full text-right bg-white/60 p-3 rounded-lg flex items-start gap-3 relative overflow-hidden group transition-all border outline-none
+                  ${isSelected ? 'border-emerald-400 bg-white ring-2 ring-emerald-400/20 shadow-md transform scale-[1.02]' : 'border-white/50 hover:bg-white hover:border-slate-200'}
+                `}
+              >
+                <div className={`w-1 h-full absolute right-0 top-0 ${isSelected ? 'bg-emerald-500' : labelClass.replace('text-', 'bg-')} opacity-60`} />
+                <div className="flex-1 pr-2">
+                  <p className={`font-bold text-sm leading-tight ${isSelected ? 'text-emerald-700' : 'text-slate-800'}`}>
+                    {opt.food_name}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-500 font-medium">
+                    <span className="bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">{opt.grams} גרם</span>
+                    <span className="text-slate-400">({opt.calories} קק״ל)</span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+          {options.length === 0 && (
+            <p className="text-xs text-slate-400 italic">לא נבחרו מקורות</p>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6 pb-12">
@@ -134,6 +214,8 @@ export function DietView() {
       <div className="space-y-4">
         {meals.sort((a, b) => a.meal_index - b.meal_index).map((meal) => {
           const isExpanded = expandedMeals[meal.id] ?? false; 
+          const mealSelection = selections[meal.id];
+          const hasSelectedAllThree = Boolean(mealSelection?.carb && mealSelection?.protein && mealSelection?.fat);
           
           return (
             <div key={meal.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden transition-all duration-300">
@@ -161,26 +243,45 @@ export function DietView() {
               {/* Accordion Body */}
               {isExpanded && (
                 <div className="p-5 border-t border-slate-50 bg-slate-50/50">
-                  <div className="mb-4 px-1">
+                  <div className="mb-4 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
                     <p className="text-sm text-slate-600 font-medium tracking-wide">
                       יש לבחור <strong className="text-emerald-600">מקור אחד</strong> מכל עמודה להרכבת הארוחה:
                     </p>
+                    
+                    <button
+                      onClick={() => handleGenerateRecipe(meal.id)}
+                      disabled={!hasSelectedAllThree}
+                      className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold transition-all
+                        ${hasSelectedAllThree 
+                          ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-md hover:shadow-purple-500/30 transform active:scale-95' 
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                        }`}
+                    >
+                      <Sparkles size={18} />
+                      יצירת מתכון עם AI
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <OptionColumn 
+                      mealId={meal.id}
+                      categoryKey="carb"
                       title="1. פחמימות" 
                       options={meal.carb_options} 
                       bgClass="bg-blue-50/50" 
                       labelClass="text-blue-700"
                     />
                     <OptionColumn 
+                      mealId={meal.id}
+                      categoryKey="protein"
                       title="2. חלבונים" 
                       options={meal.protein_options} 
                       bgClass="bg-emerald-50/50" 
                       labelClass="text-emerald-700" 
                     />
                     <OptionColumn 
+                      mealId={meal.id}
+                      categoryKey="fat"
                       title="3. שומנים" 
                       options={meal.fat_options} 
                       bgClass="bg-amber-50/50" 
@@ -193,6 +294,15 @@ export function DietView() {
           );
         })}
       </div>
+
+      {/* AI Recipe Modal */}
+      <RecipeModal
+        isOpen={isModalOpen}
+        isLoading={isAILoading}
+        recipeMarkdown={recipeResult}
+        error={aiError}
+        onClose={() => setIsModalOpen(false)}
+      />
 
     </div>
   );
