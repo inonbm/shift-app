@@ -18,7 +18,7 @@ A full-stack web application for personalized diet planning and workout tracking
 ## Project Status
 
 - [x] **Phase 0** — Git & Project Setup
-- [ ] Phase 1 — DB Schema & Architecture Plan
+- [x] **Phase 1** — DB Schema & Architecture Plan
 - [ ] Phase 2 — Auth System
 - [ ] Phase 3 — Trainer Dashboard + Math Logic
 - [ ] Phase 4 — Foods DB + Diet Generator Algorithm
