@@ -5,8 +5,10 @@ import { ProtectedRoute } from './components/ui/ProtectedRoute';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { AppLayout } from './components/layout/AppLayout';
 
-import { TrainerDashboard, DietView } from './features/placeholders';
+import { DietView } from './features/placeholders';
 import { LoginPage } from './features/auth/LoginPage';
+import { TrainerDashboard } from './features/trainer/TrainerDashboard';
+import { TraineeForm } from './features/trainer/TraineeForm';
 
 function App() {
   const { initialize, isLoading, user, profile } = useAuthStore();
@@ -43,10 +45,18 @@ function App() {
           
           {/* Trainer Routes */}
           <Route 
-            path="/trainer/*" 
+            path="/trainer" 
             element={
               <ProtectedRoute requiredRole="trainer">
                 <TrainerDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/trainer/trainees/new" 
+            element={
+              <ProtectedRoute requiredRole="trainer">
+                <TraineeForm />
               </ProtectedRoute>
             } 
           />

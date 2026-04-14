@@ -1,6 +1,7 @@
 import { create } from 'zustand';
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import type { TraineeWithData, TraineeData } from '../types';
+import type { TraineeWithData, TraineeData, CreateTraineeInput } from '../types';
 
 interface TraineeState {
   /** List of trainees managed by the current trainer */
@@ -15,6 +16,9 @@ interface TraineeState {
   /** Trainer: fetch all managed trainees */
   fetchTrainees: () => Promise<void>;
 
+  /** Trainer: Create a trainee (Auth + Profile + Data) */
+  createTrainee: (input: CreateTraineeInput) => Promise<void>;
+
   /** Trainee: fetch own profile + data */
   fetchMyData: () => Promise<void>;
 
@@ -28,7 +32,7 @@ interface TraineeState {
   clearError: () => void;
 }
 
-export const useTraineeStore = create<TraineeState>((set) => ({
+export const useTraineeStore = create<TraineeState>((set, get) => ({
   trainees: [],
   currentTrainee: null,
   isLoading: false,
@@ -114,6 +118,78 @@ export const useTraineeStore = create<TraineeState>((set) => ({
         isLoading: false,
         error: error instanceof Error ? error.message : 'Failed to fetch data',
       });
+    }
+  },
+
+  createTrainee: async (input: CreateTraineeInput) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) throw new Error('Not authenticated');
+
+      // 1. Create a secondary Supabase client that doesn't persist sessions
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: { persistSession: false, autoRefreshToken: false }
+      });
+
+      // 2. Sign up the new user
+      const { data: authData, error: authError } = await authClient.auth.signUp({
+        email: input.email,
+        password: input.password,
+        options: {
+          data: {
+            full_name: input.full_name,
+            role: 'trainee'
+          }
+        }
+      });
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Failed to create user account');
+
+      const traineeId = authData.user.id;
+
+      // The database trigger will auto-create the profile. We need to update it
+      // using the primary client (as the Trainer).
+      
+      // Since triggers might take a few milliseconds, wait a bit or just retry
+      const { error: profileUpdateError } = await supabase
+        .from('profiles')
+        .update({ trainer_id: currentUser.id })
+        .eq('id', traineeId);
+
+      if (profileUpdateError) throw profileUpdateError;
+
+      // 3. Insert the physical data via primary client
+      const traineeData: Partial<TraineeData> = {
+        id: traineeId,
+        gender: input.gender,
+        age: input.age,
+        weight_kg: input.weight_kg,
+        height_cm: input.height_cm,
+        activity_level: input.activity_level,
+        goal: input.goal,
+      };
+
+      const { error: dataError } = await supabase
+        .from('trainee_data')
+        .upsert({ ...traineeData, updated_at: new Date().toISOString() });
+
+      if (dataError) throw dataError;
+
+      // 4. Refresh trainee list
+      await get().fetchTrainees();
+    } catch (error) {
+      console.error('Failed to create trainee:', error);
+      set({
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to create trainee',
+      });
+      throw error; // Re-throw to be handled by UI
     }
   },
 
