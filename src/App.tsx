@@ -4,11 +4,15 @@ import { useAuthStore } from './stores/authStore';
 import { ProtectedRoute } from './components/ui/ProtectedRoute';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { AppLayout } from './components/layout/AppLayout';
+
 import { LoginPage } from './features/auth/LoginPage';
 import { TrainerDashboard } from './features/trainer/TrainerDashboard';
 import { TraineeForm } from './features/trainer/TraineeForm';
 import { FoodsManager } from './features/trainer/FoodsManager';
+import { WorkoutTemplateForm } from './features/trainer/WorkoutTemplateForm';
 import { DietView } from './features/trainee/DietView';
+import { WorkoutHub } from './features/trainee/WorkoutHub';
+import { ActiveWorkout } from './features/trainee/ActiveWorkout';
 
 function App() {
   const { initialize, isLoading, user, profile } = useAuthStore();
@@ -61,6 +65,14 @@ function App() {
             } 
           />
           <Route 
+            path="/trainer/workouts/new" 
+            element={
+              <ProtectedRoute requiredRole="trainer">
+                <WorkoutTemplateForm />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/trainer/foods" 
             element={
               <ProtectedRoute requiredRole="trainer">
@@ -68,12 +80,29 @@ function App() {
               </ProtectedRoute>
             } 
           />
+
           {/* Trainee Routes */}
           <Route 
             path="/diet/*" 
             element={
               <ProtectedRoute requiredRole="trainee">
                 <DietView />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/workouts" 
+            element={
+              <ProtectedRoute requiredRole="trainee">
+                <WorkoutHub />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/workouts/active/:templateId" 
+            element={
+              <ProtectedRoute requiredRole="trainee">
+                <ActiveWorkout />
               </ProtectedRoute>
             } 
           />
