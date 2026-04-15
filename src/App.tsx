@@ -8,6 +8,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { LoginPage } from './features/auth/LoginPage';
 import { TrainerDashboard } from './features/trainer/TrainerDashboard';
 import { TraineeForm } from './features/trainer/TraineeForm';
+import { TraineeDetail } from './features/trainer/TraineeDetail';
 import { FoodsManager } from './features/trainer/FoodsManager';
 import { WorkoutTemplateForm } from './features/trainer/WorkoutTemplateForm';
 import { DietView } from './features/trainee/DietView';
@@ -61,6 +62,14 @@ function App() {
             element={
               <ProtectedRoute requiredRole="trainer">
                 <TraineeForm />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/trainer/trainees/:id" 
+            element={
+              <ProtectedRoute requiredRole="trainer">
+                <TraineeDetail />
               </ProtectedRoute>
             } 
           />

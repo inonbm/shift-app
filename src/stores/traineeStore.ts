@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { TraineeWithData, TraineeData, CreateTraineeInput } from '../types';
+import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from '../lib/nutrition';
 
 interface TraineeState {
   /** List of trainees managed by the current trainer */
@@ -201,6 +202,12 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
       }
       if (!trainerLinked) throw new Error('Trainer link timed out. Please try again.');
 
+      // Calculate initial nutrition targets based on form input
+      const bmr = calculateBMR(input.gender, input.weight_kg, input.height_cm, input.age);
+      const tdee = calculateTDEE(bmr, input.activity_level);
+      const goalCalories = calculateTargetCalories(tdee, input.goal);
+      const macros = calculateMacros(input.weight_kg, Math.max(0, goalCalories));
+
       // 3. Insert the physical data via primary client (RLS is now satisfied)
       const traineeData: Partial<TraineeData> = {
         id: traineeId,
@@ -210,6 +217,12 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
         height_cm: input.height_cm,
         activity_level: input.activity_level,
         goal: input.goal,
+        bmr: bmr,
+        tdee: tdee,
+        goal_calories: goalCalories,
+        protein_grams: macros.proteinGrams,
+        carbs_grams: macros.carbsGrams,
+        fat_grams: macros.fatGrams,
       };
 
       const { error: dataError } = await supabase

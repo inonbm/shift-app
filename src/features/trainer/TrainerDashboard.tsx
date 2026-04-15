@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Plus, Users, Flame, ChevronLeft, Loader2, AlertCircle } from 'lucide-react';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { GOAL_LABELS } from '../../types';
+import { calculateBMR, calculateTDEE, calculateTargetCalories } from '../../lib/nutrition';
 
 export function TrainerDashboard() {
   const { trainees, isLoading, error, fetchTrainees } = useTraineeStore();
@@ -61,7 +62,16 @@ export function TrainerDashboard() {
           {trainees.map((trainee) => {
             const data = trainee.trainee_data;
             const goalLabel = data ? GOAL_LABELS[data.goal] : 'לא הוגדר';
-            const calories = data?.goal_calories ? Math.round(data.goal_calories).toLocaleString() : '---';
+            
+            let calories = '---';
+            if (data?.goal_calories) {
+              calories = Math.round(data.goal_calories).toLocaleString();
+            } else if (data) {
+              // Fallback calculation for older records
+              const bmr = calculateBMR(data.gender, data.weight_kg, data.height_cm, data.age);
+              const tdee = calculateTDEE(bmr, data.activity_level);
+              calories = Math.round(calculateTargetCalories(tdee, data.goal)).toLocaleString();
+            }
 
             return (
               <Link 
@@ -89,7 +99,7 @@ export function TrainerDashboard() {
                   <div className="flex-1 bg-purple-50 rounded-lg p-3">
                     <p className="text-xs text-purple-500 mb-1 flex items-center gap-1">
                       <Flame size={12} />
-                      הקצבה רומית
+                      הקצבה יומית
                     </p>
                     <p className="font-bold text-purple-900">{calories} קק״ל</p>
                   </div>

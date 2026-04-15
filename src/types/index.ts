@@ -204,8 +204,8 @@ export const ACTIVITY_LEVEL_LABELS: Record<ActivityLevel, string> = {
 };
 
 export const GOAL_LABELS: Record<Goal, string> = {
-  cut: 'חיתוך',
-  bulk: 'בנייה',
+  cut: 'חיטוב',
+  bulk: 'מסה',
   maintenance: 'תחזוקה',
 };
 
