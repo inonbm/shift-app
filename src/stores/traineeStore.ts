@@ -153,10 +153,29 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
 
       const traineeId = authData.user.id;
 
-      // The database trigger will auto-create the profile. We need to update it
-      // using the primary client (as the Trainer).
-      
-      // Since triggers might take a few milliseconds, wait a bit or just retry
+      // The database trigger auto-creates the profile row, but it may take
+      // a few hundred milliseconds to propagate. We MUST wait for it to exist
+      // before updating trainer_id, otherwise the RLS check in manages_trainee()
+      // will fail with a 403 when we try to insert into trainee_data.
+
+      // 2a. Poll until the profile row exists (max ~5 seconds)
+      let profileReady = false;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const { data: profileCheck } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', traineeId)
+          .maybeSingle();
+        
+        if (profileCheck) {
+          profileReady = true;
+          break;
+        }
+        await new Promise(r => setTimeout(r, 500));
+      }
+      if (!profileReady) throw new Error('Profile creation timed out. Please try again.');
+
+      // 2b. Set this trainee's trainer_id to the current trainer
       const { error: profileUpdateError } = await supabase
         .from('profiles')
         .update({ trainer_id: currentUser.id })
@@ -164,7 +183,25 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
 
       if (profileUpdateError) throw profileUpdateError;
 
-      // 3. Insert the physical data via primary client
+      // 2c. Confirm the trainer_id update has propagated before touching trainee_data.
+      // This ensures manages_trainee(traineeId) returns true for the INSERT RLS policy.
+      let trainerLinked = false;
+      for (let attempt = 0; attempt < 6; attempt++) {
+        const { data: linkCheck } = await supabase
+          .from('profiles')
+          .select('trainer_id')
+          .eq('id', traineeId)
+          .single();
+
+        if (linkCheck?.trainer_id === currentUser.id) {
+          trainerLinked = true;
+          break;
+        }
+        await new Promise(r => setTimeout(r, 300));
+      }
+      if (!trainerLinked) throw new Error('Trainer link timed out. Please try again.');
+
+      // 3. Insert the physical data via primary client (RLS is now satisfied)
       const traineeData: Partial<TraineeData> = {
         id: traineeId,
         gender: input.gender,
