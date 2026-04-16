@@ -14,6 +14,7 @@ export function CreateUserModal({ isOpen, onClose, trainers, onSuccess }: Create
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [role, setRole] = useState<UserRole>('trainee');
   const [trainerId, setTrainerId] = useState('');
   
@@ -26,6 +27,7 @@ export function CreateUserModal({ isOpen, onClose, trainers, onSuccess }: Create
       setFullName('');
       setEmail('');
       setPassword('');
+      setPhoneNumber('');
       setRole('trainee');
       setTrainerId('');
       setError(null);
@@ -65,7 +67,8 @@ export function CreateUserModal({ isOpen, onClose, trainers, onSuccess }: Create
           email: email.trim(),
           password,
           role,
-          trainer_id: trainerId || null
+          trainer_id: trainerId || null,
+          phone_number: phoneNumber.trim() || null
         }
       });
 
@@ -151,6 +154,20 @@ export function CreateUserModal({ isOpen, onClose, trainers, onSuccess }: Create
                     placeholder="email@example.com"
                     autoComplete="new-user-email"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">מספר טלפון (וואטסאפ)</label>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-purple-500 text-left font-mono"
+                    dir="ltr"
+                    placeholder="972501234567"
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-slate-500 mt-1 px-1">רצוי להזין קידומת בינלאומית לצורך הודעות</p>
                 </div>
 
                 <div>

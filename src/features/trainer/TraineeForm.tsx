@@ -21,6 +21,12 @@ import type {
   CreateTraineeInput
 } from '../../types';
 
+export function cleanPhoneNumber(phone: string): string {
+  // Strip everything except numbers
+  const cleaned = phone.replace(/\D/g, '');
+  return cleaned;
+}
+
 export function TraineeForm() {
   const navigate = useNavigate();
   const { createTrainee, isLoading, error, clearError } = useTraineeStore();
@@ -31,6 +37,7 @@ export function TraineeForm() {
     email: '',
     password: '',
     full_name: '',
+    phone_number: '',
     gender: 'male',
     age: 30,
     weight_kg: 70,
@@ -88,7 +95,12 @@ export function TraineeForm() {
 הסיסמה שלך: ${formData.password}`;
     
     const encodedText = encodeURIComponent(text);
-    window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+    if (formData.phone_number) {
+      const cleanPhone = cleanPhoneNumber(formData.phone_number);
+      window.open(`https://wa.me/${cleanPhone}?text=${encodedText}`, '_blank');
+    } else {
+      window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+    }
   };
 
   // ─── Step Progress Indicator ───────────────────
@@ -223,9 +235,12 @@ export function TraineeForm() {
                   <input required type="email" name="email" value={formData.email} onChange={handleChange} dir="ltr" placeholder="trainee@example.com" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:outline-none text-left text-lg" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">סיסמה זמנית</label>
                   <input required type="text" name="password" minLength={6} value={formData.password} onChange={handleChange} dir="ltr" placeholder="לפחות 6 תווים" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:outline-none text-left text-lg" />
                   <p className="text-xs text-slate-500 mt-1.5">שלח סיסמה זו למתאמן כדי שיוכל להתחבר בפעם הראשונה.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">מספר טלפון (אופציונלי - לשליחת פרטים לוואטסאפ)</label>
+                  <input type="tel" name="phone_number" value={formData.phone_number} onChange={handleChange} dir="ltr" placeholder="972501234567" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:outline-none text-left text-lg font-mono" />
                 </div>
               </div>
 

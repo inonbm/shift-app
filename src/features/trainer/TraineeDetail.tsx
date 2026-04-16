@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronRight, Calculator, Flame, Loader2, AlertCircle, Edit2, Save, Trash2, Utensils, Dumbbell, Sparkles, Plus, KeyRound, Clock, CalendarDays } from 'lucide-react';
+import { ChevronRight, Calculator, Flame, Loader2, AlertCircle, Edit2, Save, Trash2, Utensils, Dumbbell, Sparkles, Plus, KeyRound, Clock, CalendarDays, MessageCircle } from 'lucide-react';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { useDietStore } from '../../stores/dietStore';
 import { useWorkoutStore } from '../../stores/workoutStore';
@@ -129,6 +129,27 @@ export function TraineeDetail() {
     }
   };
 
+  const cleanPhoneNumber = (phone: string) => phone.replace(/\D/g, '');
+
+  const handleWhatsAppShare = () => {
+    if (!currentTrainee) return;
+    
+    // Check if the user is already an admin/trainer bypassing? Usually this is just sending a link.
+    const text = `היי ${currentTrainee.full_name},
+הכנס לפרופיל האישי שלך באפליקציית SHIFT! 
+
+כניסה לאפליקציה: ${window.location.origin}/login
+האימייל שלך: ${currentTrainee.email}`;
+    
+    const encodedText = encodeURIComponent(text);
+    if (currentTrainee.phone_number) {
+      const cleanPhone = cleanPhoneNumber(currentTrainee.phone_number);
+      window.open(`https://wa.me/${cleanPhone}?text=${encodedText}`, '_blank');
+    } else {
+      window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
       {/* Header */}
@@ -151,6 +172,13 @@ export function TraineeDetail() {
               title="איפוס סיסמה"
             >
               <KeyRound size={20} />
+            </button>
+            <button 
+              onClick={handleWhatsAppShare}
+              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
+              title="שתף ב-WhatsApp"
+            >
+              <MessageCircle size={20} />
             </button>
             <button 
               onClick={handleEditClick}

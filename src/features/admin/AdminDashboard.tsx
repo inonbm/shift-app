@@ -15,7 +15,7 @@ export function AdminDashboard() {
   
   const [resetModalUser, setResetModalUser] = useState<{ id: string, name: string } | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [editModalUser, setEditModalUser] = useState<{ id: string, name: string, role: UserRole } | null>(null);
+  const [editModalUser, setEditModalUser] = useState<{ id: string, name: string, phone: string, role: UserRole } | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -93,6 +93,7 @@ export function AdminDashboard() {
                 <tr className="border-b border-slate-200 text-sm text-slate-500">
                   <th className="py-3 px-4 font-bold">שם מלא</th>
                   <th className="py-3 px-4 font-bold">אימייל</th>
+                  <th className="py-3 px-4 font-bold">טלפון</th>
                   <th className="py-3 px-4 font-bold">תפקיד</th>
                   <th className="py-3 px-4 font-bold">מזהה מאמן</th>
                   <th className="py-3 px-4 font-bold">פעולות</th>
@@ -115,6 +116,9 @@ export function AdminDashboard() {
                         {user.role}
                       </span>
                     </td>
+                    <td className="py-3 px-4 text-slate-600 font-mono text-xs" dir="ltr">
+                      {user.phone_number || '-'}
+                    </td>
                     <td className="py-3 px-4 text-slate-400 text-xs font-mono">
                       {user.trainer_id ? (user.trainer_id.slice(0, 8) + '...') : '-'}
                     </td>
@@ -130,7 +134,7 @@ export function AdminDashboard() {
                           </button>
                         ) : (
                           <button 
-                            onClick={() => setEditModalUser({ id: user.id, name: user.full_name, role: user.role })}
+                            onClick={() => setEditModalUser({ id: user.id, name: user.full_name, phone: user.phone_number || '', role: user.role })}
                             className="bg-blue-100 text-blue-700 hover:bg-blue-200 flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors"
                           >
                             <Edit2 size={14} />
@@ -178,6 +182,7 @@ export function AdminDashboard() {
         onClose={() => setEditModalUser(null)}
         userId={editModalUser?.id || ''}
         currentName={editModalUser?.name || ''}
+        currentPhone={editModalUser?.phone || ''}
         currentRole={editModalUser?.role || 'trainee'}
         onSuccess={fetchUsers}
       />

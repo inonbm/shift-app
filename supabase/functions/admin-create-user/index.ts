@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { email, password, full_name, role, trainer_id } = await req.json();
+    const { email, password, full_name, role, trainer_id, phone_number } = await req.json();
 
     if (!email || !password || !full_name || !role) {
       return new Response(JSON.stringify({ error: 'Missing required parameters (email, password, full_name, role)' }), {
@@ -85,7 +85,8 @@ serve(async (req) => {
       .from('profiles')
       .update({
         role: role,
-        trainer_id: finalTrainerId
+        trainer_id: finalTrainerId,
+        phone_number: phone_number || null
       })
       .eq('id', newUserId);
 

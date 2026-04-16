@@ -24,6 +24,7 @@ export type FoodCategory = 'protein' | 'carb' | 'fat';
 export interface Profile {
   id: string;
   email: string;
+  phone_number?: string | null;
   full_name: string;
   role: UserRole;
   trainer_id: string | null;
@@ -140,6 +141,7 @@ export interface CreateTraineeInput {
   email: string;
   password: string;
   full_name: string;
+  phone_number?: string;
   gender: Gender;
   age: number;
   weight_kg: number;

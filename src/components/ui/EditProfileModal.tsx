@@ -8,12 +8,14 @@ interface EditProfileModalProps {
   onClose: () => void;
   userId: string;
   currentName: string;
+  currentPhone: string;
   currentRole: UserRole;
   onSuccess: () => void;
 }
 
-export function EditProfileModal({ isOpen, onClose, userId, currentName, currentRole, onSuccess }: EditProfileModalProps) {
+export function EditProfileModal({ isOpen, onClose, userId, currentName, currentPhone, currentRole, onSuccess }: EditProfileModalProps) {
   const [fullName, setFullName] = useState(currentName);
+  const [phoneNumber, setPhoneNumber] = useState(currentPhone);
   const [role, setRole] = useState<UserRole>(currentRole);
   
   const [isLoading, setIsLoading] = useState(false);
@@ -22,10 +24,11 @@ export function EditProfileModal({ isOpen, onClose, userId, currentName, current
   useEffect(() => {
     if (isOpen) {
       setFullName(currentName);
+      setPhoneNumber(currentPhone);
       setRole(currentRole);
       setError(null);
     }
-  }, [isOpen, currentName, currentRole]);
+  }, [isOpen, currentName, currentPhone, currentRole]);
 
   if (!isOpen) return null;
 
@@ -45,7 +48,8 @@ export function EditProfileModal({ isOpen, onClose, userId, currentName, current
         .from('profiles')
         .update({
           full_name: fullName.trim(),
-          role: role
+          role: role,
+          phone_number: phoneNumber.trim() || null
         })
         .eq('id', userId);
 
@@ -99,6 +103,18 @@ export function EditProfileModal({ isOpen, onClose, userId, currentName, current
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">מספר טלפון</label>
+              <input
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-left font-mono"
+                dir="ltr"
+                placeholder="972501234567"
               />
             </div>
             

@@ -179,10 +179,13 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
       }
       if (!profileReady) throw new Error('Profile creation timed out. Please try again.');
 
-      // 2b. Set this trainee's trainer_id to the current trainer
+      // 2b. Set this trainee's trainer_id to the current trainer, and save phone number
       const { error: profileUpdateError } = await supabase
         .from('profiles')
-        .update({ trainer_id: currentUser.id })
+        .update({ 
+          trainer_id: currentUser.id,
+          phone_number: input.phone_number || null
+        })
         .eq('id', traineeId);
 
       if (profileUpdateError) throw profileUpdateError;
