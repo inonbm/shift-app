@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Activity, LogOut, Utensils, Dumbbell } from 'lucide-react';
+import { Activity, LogOut, Utensils, Dumbbell, ShieldAlert } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 
 export function Header() {
@@ -45,11 +45,21 @@ export function Header() {
         {/* User Actions */}
         {user && profile && (
           <div className="flex items-center gap-4">
+            {profile.role === 'admin' && (
+              <Link 
+                to="/admin"
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-sm font-bold transition-colors mr-2"
+              >
+                <ShieldAlert size={16} />
+                ניהול מערכת
+              </Link>
+            )}
+
             <div className="hidden md:block text-sm text-slate-500">
               שלום, <strong className="text-slate-800">{profile.full_name}</strong>
               <span className="mx-2">|</span>
-              <span className="text-emerald-600 font-medium">
-                {profile.role === 'trainer' ? 'מאמן' : 'מתאמן'}
+              <span className={`font-medium ${profile.role === 'admin' ? 'text-red-600' : 'text-emerald-600'}`}>
+                {profile.role === 'trainer' ? 'מאמן' : profile.role === 'admin' ? 'מנהל ראשי' : 'מתאמן'}
               </span>
             </div>
             

@@ -4,7 +4,7 @@
 
 // --- Enums / Union Types ---
 
-export type UserRole = 'trainer' | 'trainee';
+export type UserRole = 'trainer' | 'trainee' | 'admin';
 
 export type Gender = 'male' | 'female';
 

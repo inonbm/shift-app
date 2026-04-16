@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronRight, Calculator, Flame, Loader2, AlertCircle, Edit2, Save, Trash2, Utensils, Dumbbell, Sparkles, Plus } from 'lucide-react';
+import { ChevronRight, Calculator, Flame, Loader2, AlertCircle, Edit2, Save, Trash2, Utensils, Dumbbell, Sparkles, Plus, KeyRound } from 'lucide-react';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { useDietStore } from '../../stores/dietStore';
 import { useWorkoutStore } from '../../stores/workoutStore';
+import { ResetPasswordModal } from '../../components/ui/ResetPasswordModal';
 import { GOAL_LABELS, ACTIVITY_LEVEL_LABELS, GENDER_LABELS } from '../../types';
 import type { Gender, ActivityLevel, Goal, TraineeData } from '../../types';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from '../../lib/nutrition';
@@ -21,6 +22,7 @@ export function TraineeDetail() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<TraineeData>>({});
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -141,6 +143,13 @@ export function TraineeDetail() {
         </div>
         {!isEditing && data && activeTab === 'overview' && (
           <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setIsPasswordModalOpen(true)}
+              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
+              title="איפוס סיסמה"
+            >
+              <KeyRound size={20} />
+            </button>
             <button 
               onClick={handleEditClick}
               className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-colors text-sm font-bold"
@@ -458,6 +467,14 @@ export function TraineeDetail() {
           )}
         </div>
       )}
+
+      {/* Reset Password Modal */}
+      <ResetPasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        targetUserId={currentTrainee.id}
+        targetUserName={currentTrainee.full_name}
+      />
 
     </div>
   );
