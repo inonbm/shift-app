@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Plus, Trash2, ArrowRight, Save, Dumbbell, AlertCircle, Loader2 } from 'lucide-react';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { useWorkoutStore } from '../../stores/workoutStore';
 
 export function WorkoutTemplateForm() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { trainees, fetchTrainees } = useTraineeStore();
   const { createTemplate, isLoading, error, clearError } = useWorkoutStore();
 
-  const [traineeId, setTraineeId] = useState('');
+  const queryParams = new URLSearchParams(location.search);
+  const initialTraineeId = queryParams.get('traineeId') || '';
+
+  const [traineeId, setTraineeId] = useState(initialTraineeId);
   const [templateName, setTemplateName] = useState('');
   const [exercises, setExercises] = useState([
     { exercise_name: '', target_sets: 3, target_reps: 10 }
