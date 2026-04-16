@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { ShieldAlert, Search, Loader2, KeyRound, User } from 'lucide-react';
+import { ShieldAlert, Search, Loader2, KeyRound, User, ExternalLink } from 'lucide-react';
 import type { Profile } from '../../types';
 import { ResetPasswordModal } from '../../components/ui/ResetPasswordModal';
 
 export function AdminDashboard() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -104,13 +106,24 @@ export function AdminDashboard() {
                       {user.trainer_id ? (user.trainer_id.slice(0, 8) + '...') : '-'}
                     </td>
                     <td className="py-3 px-4">
-                      <button 
-                        onClick={() => setResetModalUser({ id: user.id, name: user.full_name })}
-                        className="bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors"
-                      >
-                        <KeyRound size={14} />
-                        אפס סיסמה
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {user.role === 'trainee' && (
+                          <button 
+                            onClick={() => navigate(`/trainer/trainees/${user.id}`)}
+                            className="bg-purple-100 text-purple-700 hover:bg-purple-200 flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors"
+                          >
+                            <ExternalLink size={14} />
+                            צפה בפרופיל
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => setResetModalUser({ id: user.id, name: user.full_name })}
+                          className="bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors"
+                        >
+                          <KeyRound size={14} />
+                          אפס סיסמה
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

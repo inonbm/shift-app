@@ -52,7 +52,7 @@ function App() {
         {/* Protected Routes wrapped in AppLayout */}
         <Route element={<AppLayout />}>
           
-          {/* Trainer Routes */}
+          {/* Trainer Routes (Admins allowed into TraineeDetail) */}
           <Route 
             path="/trainer" 
             element={
@@ -72,7 +72,7 @@ function App() {
           <Route 
             path="/trainer/trainees/:id" 
             element={
-              <ProtectedRoute requiredRole="trainer">
+              <ProtectedRoute requiredRole={['trainer', 'admin']}>
                 <TraineeDetail />
               </ProtectedRoute>
             } 
@@ -80,7 +80,7 @@ function App() {
           <Route 
             path="/trainer/workouts/new" 
             element={
-              <ProtectedRoute requiredRole="trainer">
+              <ProtectedRoute requiredRole={['trainer', 'admin']}>
                 <WorkoutTemplateForm />
               </ProtectedRoute>
             } 
@@ -88,7 +88,7 @@ function App() {
           <Route 
             path="/trainer/foods" 
             element={
-              <ProtectedRoute requiredRole="trainer">
+              <ProtectedRoute requiredRole={['trainer', 'admin']}>
                 <FoodsManager />
               </ProtectedRoute>
             } 

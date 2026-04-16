@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronRight, Calculator, Flame, Loader2, AlertCircle, Edit2, Save, Trash2, Utensils, Dumbbell, Sparkles, Plus, KeyRound } from 'lucide-react';
+import { ChevronRight, Calculator, Flame, Loader2, AlertCircle, Edit2, Save, Trash2, Utensils, Dumbbell, Sparkles, Plus, KeyRound, Clock, CalendarDays } from 'lucide-react';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { useDietStore } from '../../stores/dietStore';
 import { useWorkoutStore } from '../../stores/workoutStore';
@@ -17,7 +17,7 @@ export function TraineeDetail() {
   
   const { currentTrainee, fetchTraineeById, updateTraineeData, deleteTrainee, isLoading: isTraineeLoading, error: traineeError } = useTraineeStore();
   const { meals, fetchDiet, generateDiet, isLoading: isDietLoading, error: dietError } = useDietStore();
-  const { templates, fetchTemplates, error: workoutError } = useWorkoutStore();
+  const { templates, fetchTemplates, sessions, fetchHistory, error: workoutError } = useWorkoutStore();
 
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [isEditing, setIsEditing] = useState(false);
@@ -29,8 +29,9 @@ export function TraineeDetail() {
       fetchTraineeById(id);
       fetchDiet(id);
       fetchTemplates();
+      fetchHistory();
     }
-  }, [id, fetchTraineeById, fetchDiet, fetchTemplates]);
+  }, [id, fetchTraineeById, fetchDiet, fetchTemplates, fetchHistory]);
 
   if (isTraineeLoading && !currentTrainee) {
     return (
@@ -45,6 +46,7 @@ export function TraineeDetail() {
 
   const data = currentTrainee.trainee_data;
   const traineeTemplates = templates.filter(t => t.trainee_id === id);
+  const traineeSessions = sessions.filter(s => s.trainee_id === id);
   const compositeError = traineeError || dietError || workoutError;
 
   // --- Handlers ---
@@ -465,6 +467,75 @@ export function TraineeDetail() {
               ))}
             </div>
           )}
+          <div className="pt-8 mt-8 border-t border-slate-100">
+            <div className="flex items-center gap-2 mb-6">
+              <Clock className="text-blue-500" />
+              <h2 className="text-lg font-bold text-slate-800">היסטוריית אימונים (יומן ביצוע)</h2>
+            </div>
+            
+            {traineeSessions.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-slate-400">המתאמן טרם רשם אימונים שבוצעו במערכת.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {traineeSessions.map(session => {
+                  const template = templates.find(t => t.id === session.template_id);
+                  const sessionDate = new Date(session.performed_at).toLocaleDateString('he-IL', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  });
+
+                  // Group sets by exercise_id to merge them conceptually just for viewing
+                  // However, for simplicity, we can just list them compactly
+                  return (
+                    <div key={session.id} className="bg-slate-50 rounded-xl p-5 border border-slate-200">
+                      <div className="flex justify-between items-start mb-4 pb-3 border-b border-slate-200">
+                        <div>
+                          <h3 className="font-bold text-slate-800 text-lg">
+                            {template?.name || 'אימון שמור (תבנית נמחקה)'}
+                          </h3>
+                          <div className="flex items-center gap-1.5 text-slate-500 text-sm mt-1">
+                            <CalendarDays size={14} />
+                            {sessionDate}
+                          </div>
+                        </div>
+                        {session.notes && (
+                          <div className="bg-blue-50 text-blue-700 p-2 rounded-lg text-xs max-w-xs break-words">
+                            <strong>הערת מתאמן:</strong> {session.notes}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        {template && template.exercises.sort((a,b) => a.order_index - b.order_index).map(ex => {
+                          const exerciseSets = session.sets.filter(s => s.exercise_id === ex.id).sort((a,b) => a.set_number - b.set_number);
+                          if (exerciseSets.length === 0) return null; // skipped exercise
+
+                          return (
+                            <div key={ex.id} className="bg-white rounded-lg p-3 border border-slate-100 flex flex-col md:flex-row gap-3 md:items-center">
+                              <span className="font-bold text-slate-700 min-w-[150px]">{ex.exercise_name}</span>
+                              <div className="flex flex-wrap gap-2">
+                                {exerciseSets.map(set => (
+                                  <span key={set.id} className="bg-slate-50 px-2 py-1 rounded text-xs text-slate-600 font-mono border border-slate-200 shadow-sm">
+                                    סט {set.set_number}: <strong className="text-slate-800">{set.weight_kg}kg</strong> × {set.reps_done}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

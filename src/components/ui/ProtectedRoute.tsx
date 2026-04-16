@@ -5,8 +5,8 @@ import type { UserRole } from '../../types';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  /** If specified, only users with this role can access the route */
-  requiredRole?: UserRole;
+  /** If specified, only users with these roles can access the route */
+  requiredRole?: UserRole | UserRole[];
 }
 
 /**
@@ -34,9 +34,12 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   }
 
   // Wrong role — redirect to the correct home page
-  if (requiredRole && profile.role !== requiredRole) {
-    const redirectPath = profile.role === 'trainer' ? '/trainer' : '/diet';
-    return <Navigate to={redirectPath} replace />;
+  if (requiredRole) {
+    const rolesArray = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+    if (!rolesArray.includes(profile.role)) {
+      const redirectPath = profile.role === 'admin' ? '/admin' : profile.role === 'trainer' ? '/trainer' : '/diet';
+      return <Navigate to={redirectPath} replace />;
+    }
   }
 
   return <>{children}</>;
