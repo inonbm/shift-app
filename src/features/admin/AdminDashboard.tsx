@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { ShieldAlert, Search, Loader2, KeyRound, User, ExternalLink, UserPlus, Edit2 } from 'lucide-react';
+import { ShieldAlert, Search, Loader2, KeyRound, User, ExternalLink, UserPlus, Edit2, Trash2 } from 'lucide-react';
 import type { Profile, UserRole } from '../../types';
 import { ResetPasswordModal } from '../../components/ui/ResetPasswordModal';
 import { CreateUserModal } from '../../components/ui/CreateUserModal';
@@ -41,6 +41,26 @@ export function AdminDashboard() {
   const filteredUsers = users.filter(u => 
     u.full_name.includes(search) || u.email.includes(search)
   );
+
+  const handleDeleteUser = async (targetId: string, name: string) => {
+    const isConfirmed = window.confirm(
+      `האם אתה בטוח שברצונך למחוק את משתמש זה לצמיתות?\n\nשם: ${name}\nמזהה: ${targetId}\n\nפעולה זו תמחק גם את חשבון ההתחברות (Auth) והיא בלתי הפיכה!`
+    );
+    if (!isConfirmed) return;
+
+    try {
+      const { error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { targetUserId: targetId }
+      });
+      if (error) throw error;
+      
+      // Update UI
+      setUsers(users.filter(u => u.id !== targetId));
+    } catch (err: any) {
+      console.error('Failed to delete user:', err);
+      alert(`שגיאה במחיקת המשתמש: ${err.message}`);
+    }
+  };
 
   const availableTrainers = users.filter(u => u.role === 'trainer');
 
@@ -147,6 +167,13 @@ export function AdminDashboard() {
                         >
                           <KeyRound size={14} />
                           אפס סיסמה
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteUser(user.id, user.full_name)}
+                          className="bg-red-100 text-red-700 hover:bg-red-200 flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors"
+                        >
+                          <Trash2 size={14} />
+                          מחק משתמש
                         </button>
                       </div>
                     </td>

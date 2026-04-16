@@ -4,6 +4,7 @@ import { ChevronRight, Calculator, Flame, Loader2, AlertCircle, Edit2, Save, Tra
 import { useTraineeStore } from '../../stores/traineeStore';
 import { useDietStore } from '../../stores/dietStore';
 import { useWorkoutStore } from '../../stores/workoutStore';
+import { supabase } from '../../lib/supabase';
 import { ResetPasswordModal } from '../../components/ui/ResetPasswordModal';
 import { GOAL_LABELS, ACTIVITY_LEVEL_LABELS, GENDER_LABELS } from '../../types';
 import type { Gender, ActivityLevel, Goal, TraineeData } from '../../types';
@@ -15,7 +16,7 @@ export function TraineeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
-  const { currentTrainee, fetchTraineeById, updateTraineeData, deleteTrainee, isLoading: isTraineeLoading, error: traineeError } = useTraineeStore();
+  const { currentTrainee, fetchTraineeById, updateTraineeData, isLoading: isTraineeLoading, error: traineeError } = useTraineeStore();
   const { meals, fetchDiet, generateDiet, isLoading: isDietLoading, error: dietError } = useDietStore();
   const { templates, fetchTemplates, sessions, fetchHistory, error: workoutError } = useWorkoutStore();
 
@@ -112,7 +113,13 @@ export function TraineeDetail() {
     );
     if (isConfirmed) {
       try {
-        await deleteTrainee(id);
+        const { error: deleteError } = await supabase.functions.invoke('admin-delete-user', { 
+          body: { targetUserId: id } 
+        });
+        
+        if (deleteError) throw deleteError;
+        
+        // Remove locally from state if needed by calling a clear or just navigating away
         navigate('/trainer');
       } catch (err) {
         console.error('Failed to delete', err);
