@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { ShieldAlert, Search, Loader2, KeyRound, User, ExternalLink } from 'lucide-react';
-import type { Profile } from '../../types';
+import { ShieldAlert, Search, Loader2, KeyRound, User, ExternalLink, UserPlus, Edit2 } from 'lucide-react';
+import type { Profile, UserRole } from '../../types';
 import { ResetPasswordModal } from '../../components/ui/ResetPasswordModal';
+import { CreateUserModal } from '../../components/ui/CreateUserModal';
+import { EditProfileModal } from '../../components/ui/EditProfileModal';
 
 export function AdminDashboard() {
   const navigate = useNavigate();
@@ -12,6 +14,8 @@ export function AdminDashboard() {
   const [search, setSearch] = useState('');
   
   const [resetModalUser, setResetModalUser] = useState<{ id: string, name: string } | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editModalUser, setEditModalUser] = useState<{ id: string, name: string, role: UserRole } | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -38,6 +42,8 @@ export function AdminDashboard() {
     u.full_name.includes(search) || u.email.includes(search)
   );
 
+  const availableTrainers = users.filter(u => u.role === 'trainer');
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12">
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-red-100/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -50,6 +56,13 @@ export function AdminDashboard() {
             <p className="text-slate-500">ניהול משתמשים, אבטחה והרשאות ברמת הארגון.</p>
           </div>
         </div>
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"
+        >
+          <UserPlus size={18} />
+          הוסף משתמש חדש
+        </button>
       </div>
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
@@ -107,13 +120,21 @@ export function AdminDashboard() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-end gap-2">
-                        {user.role === 'trainee' && (
+                        {user.role === 'trainee' ? (
                           <button 
                             onClick={() => navigate(`/trainer/trainees/${user.id}`)}
                             className="bg-purple-100 text-purple-700 hover:bg-purple-200 flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors"
                           >
                             <ExternalLink size={14} />
                             צפה בפרופיל
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => setEditModalUser({ id: user.id, name: user.full_name, role: user.role })}
+                            className="bg-blue-100 text-blue-700 hover:bg-blue-200 flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors"
+                          >
+                            <Edit2 size={14} />
+                            ערוך פרופיל
                           </button>
                         )}
                         <button 
@@ -143,6 +164,22 @@ export function AdminDashboard() {
         onClose={() => setResetModalUser(null)}
         targetUserId={resetModalUser?.id || ''}
         targetUserName={resetModalUser?.name || ''}
+      />
+
+      <CreateUserModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        trainers={availableTrainers}
+        onSuccess={fetchUsers}
+      />
+
+      <EditProfileModal
+        isOpen={!!editModalUser}
+        onClose={() => setEditModalUser(null)}
+        userId={editModalUser?.id || ''}
+        currentName={editModalUser?.name || ''}
+        currentRole={editModalUser?.role || 'trainee'}
+        onSuccess={fetchUsers}
       />
     </div>
   );
