@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronRight, Calculator, Flame, Loader2, AlertCircle, Edit2, Save } from 'lucide-react';
+import { ChevronRight, Calculator, Flame, Loader2, AlertCircle, Edit2, Save, Trash2 } from 'lucide-react';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { GOAL_LABELS, ACTIVITY_LEVEL_LABELS, GENDER_LABELS } from '../../types';
 import type { Gender, ActivityLevel, Goal, TraineeData } from '../../types';
@@ -9,7 +9,7 @@ import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros }
 export function TraineeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentTrainee, fetchTraineeById, updateTraineeData, isLoading, error } = useTraineeStore();
+  const { currentTrainee, fetchTraineeById, updateTraineeData, deleteTrainee, isLoading, error } = useTraineeStore();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<TraineeData>>({});
@@ -90,6 +90,22 @@ export function TraineeDetail() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!id) return;
+    const isConfirmed = window.confirm(
+      'האם אתה בטוח שברצונך למחוק מתאמן זה? פעולה זו תמחק גם את כל נתוני התזונה, היסטוריית האימונים, והפרופיל שלו לצמיתות.'
+    );
+    
+    if (isConfirmed) {
+      try {
+        await deleteTrainee(id);
+        navigate('/trainer');
+      } catch (err) {
+        console.error('Failed to delete', err);
+      }
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
       {/* Header */}
@@ -105,12 +121,22 @@ export function TraineeDetail() {
           <p className="text-sm text-slate-500">{currentTrainee.email}</p>
         </div>
         {!isEditing && data && (
-          <button 
-            onClick={handleEditClick}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-colors text-sm font-bold"
-          >
-            <Edit2 size={16} /> ערוך נתונים
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleEditClick}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-colors text-sm font-bold"
+            >
+              <Edit2 size={16} /> ערוך
+            </button>
+            <button 
+              onClick={handleDelete}
+              disabled={isLoading}
+              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+              title="מחק מתאמן"
+            >
+              <Trash2 size={20} />
+            </button>
+          </div>
         )}
       </div>
 

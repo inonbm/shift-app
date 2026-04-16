@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calculator, ArrowRight, ArrowLeft, Loader2, Save, AlertCircle, UserPlus, Activity } from 'lucide-react';
+import { Calculator, ArrowRight, ArrowLeft, Loader2, Save, AlertCircle, UserPlus, Activity, CheckCircle2, MessageCircle } from 'lucide-react';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { 
   calculateBMR, 
@@ -73,11 +73,22 @@ export function TraineeForm() {
     
     try {
       await createTrainee(formData);
-      // Wait for trigger and profile linkage to settle, then redirect
-      setTimeout(() => navigate('/trainer'), 500);
+      setStep(3); // Go to success screen
     } catch (err) {
       console.error('Submission failed', err);
     }
+  };
+
+  const handleWhatsAppShare = () => {
+    const text = `היי ${formData.full_name},
+הפרופיל שלך באפליקציית SHIFT מוכן! 
+
+כניסה לאפליקציה: ${window.location.origin}/login
+האימייל שלך: ${formData.email}
+הסיסמה שלך: ${formData.password}`;
+    
+    const encodedText = encodeURIComponent(text);
+    window.open(`https://wa.me/?text=${encodedText}`, '_blank');
   };
 
   // ─── Step Progress Indicator ───────────────────
@@ -89,12 +100,20 @@ export function TraineeForm() {
         {step > 1 ? '✓' : '1'}
         <span>פרטי חשבון</span>
       </div>
-      <div className={`w-8 h-0.5 rounded-full transition-colors ${step >= 2 ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+      <div className={`w-8 h-0.5 rounded-full transition-colors ${(step >= 2) ? 'bg-emerald-400' : 'bg-slate-200'}`} />
       <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all
-        ${step === 2 ? 'bg-purple-600 text-white shadow-md shadow-purple-500/25' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}
+        ${step === 2 ? 'bg-purple-600 text-white shadow-md shadow-purple-500/25' : 
+          step > 2 ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}
       >
-        2
+        {step > 2 ? '✓' : '2'}
         <span>נתונים גופניים</span>
+      </div>
+      <div className={`w-8 h-0.5 rounded-full transition-colors ${step === 3 ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+      <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all
+        ${step === 3 ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30' : 'bg-slate-100 text-slate-400 border border-slate-200'}`}
+      >
+        3
+        <span>סיום</span>
       </div>
     </div>
   );
@@ -165,7 +184,8 @@ export function TraineeForm() {
         <div>
           <h1 className="text-xl font-bold text-slate-800">הוספת מתאמן חדש</h1>
           <p className="text-sm text-slate-500">
-            {step === 1 ? 'שלב 1: פרטי רישום והתחברות' : 'שלב 2: נתונים פיזיולוגיים ומטרות'}
+            {step === 1 ? 'שלב 1: פרטי רישום והתחברות' : 
+             step === 2 ? 'שלב 2: נתונים פיזיולוגיים ומטרות' : 'המתאמן נוצר בהצלחה!'}
           </p>
         </div>
       </div>
@@ -332,6 +352,44 @@ export function TraineeForm() {
           </div>
 
         </form>
+      )}
+
+      {/* ═══════════════════════════════════════════ */}
+      {/* STEP 3: Success & WhatsApp Share            */}
+      {/* ═══════════════════════════════════════════ */}
+      {step === 3 && (
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-emerald-100 text-center max-w-lg mx-auto mt-8 space-y-6">
+          <div className="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-2">
+            <CheckCircle2 size={32} />
+          </div>
+          
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">המתאמן נוצר בהצלחה!</h2>
+            <p className="text-slate-500 mt-2">
+              הפרופיל של {formData.full_name} נשמר במערכת ומוכן מחושב. כעת יש להעביר אליו את פרטי ההתחברות.
+            </p>
+          </div>
+
+          <div className="bg-slate-50 p-4 rounded-xl text-right border border-slate-100 text-sm font-mono text-slate-700">
+            <p><strong>דוא״ל:</strong> {formData.email}</p>
+            <p><strong>סיסמה:</strong> {formData.password}</p>
+          </div>
+
+          <button
+            onClick={handleWhatsAppShare}
+            className="w-full bg-[#25D366] hover:bg-[#1ebd59] text-white py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-[#25D366]/30 transform active:scale-[0.98]"
+          >
+            <MessageCircle size={20} />
+            שתף פרטים ב-WhatsApp
+          </button>
+          
+          <button
+            onClick={() => navigate('/trainer')}
+            className="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-xl font-bold transition-colors"
+          >
+            חזור ללוח הבקרה
+          </button>
+        </div>
       )}
     </div>
   );

@@ -29,6 +29,9 @@ interface TraineeState {
   /** Trainer: update trainee data (physical measurements + calculated macros) */
   updateTraineeData: (id: string, data: Partial<TraineeData>) => Promise<void>;
 
+  /** Trainer: delete a trainee profile (cascades automatically) */
+  deleteTrainee: (id: string) => Promise<void>;
+
   /** Clear error */
   clearError: () => void;
 }
@@ -297,6 +300,36 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
         isLoading: false,
         error: error instanceof Error ? error.message : 'Failed to update trainee data',
       });
+    }
+  },
+
+  deleteTrainee: async (id: string) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Ensure lists are updated
+      await get().fetchTrainees();
+      
+      // If we just deleted the trainee we were looking at
+      if (get().currentTrainee?.id === id) {
+        set({ currentTrainee: null });
+      } else {
+        set({ isLoading: false });
+      }
+    } catch (error) {
+      console.error('Failed to delete trainee:', error);
+      set({
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'שגיאה במחיקת המתאמן',
+      });
+      throw error;
     }
   },
 
