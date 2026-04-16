@@ -125,7 +125,7 @@ export function CreateUserModal({ isOpen, onClose, trainers, onSuccess }: Create
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">שם מלא</label>
                   <input
@@ -135,6 +135,7 @@ export function CreateUserModal({ isOpen, onClose, trainers, onSuccess }: Create
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="הזן שם מלא"
+                    autoComplete="off"
                   />
                 </div>
                 
@@ -148,6 +149,7 @@ export function CreateUserModal({ isOpen, onClose, trainers, onSuccess }: Create
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-purple-500 text-left font-mono"
                     dir="ltr"
                     placeholder="email@example.com"
+                    autoComplete="new-user-email"
                   />
                 </div>
 
@@ -162,6 +164,7 @@ export function CreateUserModal({ isOpen, onClose, trainers, onSuccess }: Create
                     dir="ltr"
                     minLength={6}
                     placeholder="לפחות 6 תווים"
+                    autoComplete="new-password"
                   />
                 </div>
 

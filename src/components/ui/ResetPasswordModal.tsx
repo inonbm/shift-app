@@ -109,7 +109,7 @@ export function ResetPasswordModal({ isOpen, onClose, targetUserId, targetUserNa
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">סיסמה זמנית חדשה</label>
                   <input
@@ -120,6 +120,7 @@ export function ResetPasswordModal({ isOpen, onClose, targetUserId, targetUserNa
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-amber-500 text-left font-mono"
                     dir="ltr"
                     minLength={6}
+                    autoComplete="new-password"
                   />
                 </div>
                 <div>
@@ -132,6 +133,7 @@ export function ResetPasswordModal({ isOpen, onClose, targetUserId, targetUserNa
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-amber-500 text-left font-mono"
                     dir="ltr"
                     minLength={6}
+                    autoComplete="new-password"
                   />
                 </div>
 
