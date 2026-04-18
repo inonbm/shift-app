@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronRight, Calculator, Flame, Loader2, AlertCircle, Edit2, Save, Trash2, Utensils, Dumbbell, Sparkles, Plus, KeyRound, Clock, CalendarDays, MessageCircle, SlidersHorizontal, CheckCheck, X } from 'lucide-react';
+import { ChevronRight, Calculator, Flame, Loader2, AlertCircle, Edit2, Save, Trash2, Utensils, Dumbbell, Sparkles, Plus, KeyRound, Clock, CalendarDays, MessageCircle, SlidersHorizontal, CheckCheck, X, Search } from 'lucide-react';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { useDietStore } from '../../stores/dietStore';
 import { useWorkoutStore } from '../../stores/workoutStore';
+import { useFoodStore } from '../../stores/foodStore';
 import { supabase } from '../../lib/supabase';
 import { ResetPasswordModal } from '../../components/ui/ResetPasswordModal';
 import { GOAL_LABELS, ACTIVITY_LEVEL_LABELS, GENDER_LABELS } from '../../types';
-import type { Gender, ActivityLevel, Goal, TraineeData, GeneratedMeal } from '../../types';
+import type { Gender, ActivityLevel, Goal, TraineeData, MealFoodOption, Food } from '../../types';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from '../../lib/nutrition';
 
 type Tab = 'overview' | 'diet' | 'workouts';
@@ -19,6 +20,7 @@ export function TraineeDetail() {
   const { currentTrainee, fetchTraineeById, updateTraineeData, isLoading: isTraineeLoading, error: traineeError } = useTraineeStore();
   const { meals, fetchDiet, generateDiet, isLoading: isDietLoading, error: dietError } = useDietStore();
   const { templates, fetchTemplates, sessions, fetchHistory, error: workoutError } = useWorkoutStore();
+  const { foods, fetchFoods } = useFoodStore();
 
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [isEditing, setIsEditing] = useState(false);
@@ -30,10 +32,19 @@ export function TraineeDetail() {
   const [isSavingTargets, setIsSavingTargets] = useState(false);
   const [targetsForm, setTargetsForm] = useState({ goal_calories: 0, protein_grams: 0, carbs_grams: 0, fat_grams: 0 });
 
-  // --- Manual menu editing state ---
+  // --- Structured menu editing state ---
+  interface MealEdit {
+    meal_name: string;
+    protein_options: MealFoodOption[];
+    carb_options: MealFoodOption[];
+    fat_options: MealFoodOption[];
+  }
   const [isEditingMenu, setIsEditingMenu] = useState(false);
   const [isSavingMenu, setIsSavingMenu] = useState(false);
-  const [menuEdits, setMenuEdits] = useState<Record<string, { meal_name: string; meal_content: string }>>({});
+  const [menuEdits, setMenuEdits] = useState<Record<string, MealEdit>>({});
+  // Per-meal, per-category: which food is selected in the dropdown and how many grams
+  const [addForms, setAddForms] = useState<Record<string, Record<string, { foodId: string; grams: number }>>>({});
+  const [foodSearch, setFoodSearch] = useState<Record<string, Record<string, string>>>({});;
 
   useEffect(() => {
     if (id) {
@@ -177,37 +188,70 @@ export function TraineeDetail() {
     }
   };
 
-  // --- Manual menu editing handlers ---
-  const getMealText = (meal: GeneratedMeal) => {
-    // If it's already custom text, just return it
-    if (meal.protein_options.length === 1 && meal.protein_options[0].food_id === 'custom_text') {
-      return meal.protein_options[0].food_name;
-    }
-    
-    // Otherwise, construct textual representation
-    const parts = [];
-    if (meal.carb_options?.length > 0) {
-      parts.push(`פחמימות (כ-${meal.target_carbs}g):\n` + meal.carb_options.map(opt => `• ${opt.grams}g - ${opt.food_name}`).join('\n'));
-    }
-    if (meal.protein_options?.length > 0) {
-      parts.push(`חלבונים (כ-${meal.target_protein}g):\n` + meal.protein_options.map(opt => `• ${opt.grams}g - ${opt.food_name}`).join('\n'));
-    }
-    if (meal.fat_options?.length > 0) {
-      parts.push(`שומנים (כ-${meal.target_fat}g):\n` + meal.fat_options.map(opt => `• ${opt.grams}g - ${opt.food_name}`).join('\n'));
-    }
-    return parts.join('\n\n');
+  // --- Structured menu editing handlers ---
+  const buildMealFoodOption = (food: Food, grams: number): MealFoodOption => {
+    const factor = grams / 100;
+    return {
+      food_id: food.id,
+      food_name: food.name,
+      grams: Math.round(grams),
+      protein_g: Math.round(food.protein_per_100g * factor * 10) / 10,
+      carbs_g: Math.round(food.carbs_per_100g * factor * 10) / 10,
+      fat_g: Math.round(food.fats_per_100g * factor * 10) / 10,
+      calories: Math.round(food.calories_per_100g * factor),
+    };
   };
 
-  const handleEditMenuClick = () => {
-    const edits: Record<string, { meal_name: string; meal_content: string }> = {};
+  const handleEditMenuClick = async () => {
+    // Load foods if not loaded yet
+    if (foods.length === 0) await fetchFoods();
+    const edits: Record<string, MealEdit> = {};
     meals.forEach(m => {
-      edits[m.id] = { 
+      edits[m.id] = {
         meal_name: m.meal_name,
-        meal_content: getMealText(m)
+        protein_options: [...m.protein_options],
+        carb_options: [...m.carb_options],
+        fat_options: [...m.fat_options],
       };
     });
     setMenuEdits(edits);
+    setAddForms({});
+    setFoodSearch({});
     setIsEditingMenu(true);
+  };
+
+  const handleRemoveItem = (mealId: string, category: 'protein_options' | 'carb_options' | 'fat_options', foodId: string) => {
+    setMenuEdits(prev => ({
+      ...prev,
+      [mealId]: {
+        ...prev[mealId],
+        [category]: prev[mealId][category].filter(o => o.food_id !== foodId),
+      },
+    }));
+  };
+
+  const handleAddItem = (mealId: string, category: 'protein_options' | 'carb_options' | 'fat_options') => {
+    const form = addForms[mealId]?.[category];
+    if (!form?.foodId || !form?.grams || form.grams <= 0) return;
+    const food = foods.find(f => f.id === form.foodId);
+    if (!food) return;
+    const option = buildMealFoodOption(food, form.grams);
+    setMenuEdits(prev => ({
+      ...prev,
+      [mealId]: {
+        ...prev[mealId],
+        [category]: [...prev[mealId][category], option],
+      },
+    }));
+    // Reset this add-form
+    setAddForms(prev => ({
+      ...prev,
+      [mealId]: { ...prev[mealId], [category]: { foodId: '', grams: 100 } },
+    }));
+    setFoodSearch(prev => ({
+      ...prev,
+      [mealId]: { ...prev[mealId], [category]: '' },
+    }));
   };
 
   const handleSaveMenu = async () => {
@@ -216,24 +260,15 @@ export function TraineeDetail() {
       const updates = Object.entries(menuEdits).map(([mealId, fields]) =>
         supabase
           .from('generated_meals')
-          .update({ 
+          .update({
             meal_name: fields.meal_name,
-            protein_options: [{
-              food_id: 'custom_text',
-              food_name: fields.meal_content,
-              grams: 0,
-              protein_g: 0,
-              carbs_g: 0,
-              fat_g: 0,
-              calories: 0
-            }],
-            carb_options: [],
-            fat_options: []
+            protein_options: fields.protein_options,
+            carb_options: fields.carb_options,
+            fat_options: fields.fat_options,
           })
           .eq('id', mealId)
       );
       await Promise.all(updates);
-      // Refresh meals in store
       if (id) await fetchDiet(id);
       setIsEditingMenu(false);
     } catch (err) {
@@ -241,6 +276,16 @@ export function TraineeDetail() {
     } finally {
       setIsSavingMenu(false);
     }
+  };
+
+  // Helper: filter foods by category for the dropdown
+  const getFoodsByCategory = (category: 'protein_options' | 'carb_options' | 'fat_options', mealId: string) => {
+    const catMap = { protein_options: 'protein', carb_options: 'carb', fat_options: 'fat' } as const;
+    const primaryCat = catMap[category];
+    const search = (foodSearch[mealId]?.[category] || '').trim().toLowerCase();
+    return foods
+      .filter(f => f.primary_category === primaryCat)
+      .filter(f => !search || f.name.toLowerCase().includes(search));
   };
 
   const cleanPhoneNumber = (phone: string) => phone.replace(/\D/g, '');
@@ -635,7 +680,7 @@ export function TraineeDetail() {
           {isEditingMenu && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-amber-700 text-sm flex items-center gap-2">
               <Edit2 size={14} className="flex-shrink-0" />
-              מצב עריכה פעיל – ניתן לשנות את שמות הארוחות. לחץ על ״שמור שינויים״ לאישור.
+              מצב עריכה פעיל – ערוך שמות ומרכיבי ארוחות. לחץ ״שמור שינויים״ לאישור.
             </div>
           )}
 
@@ -645,21 +690,22 @@ export function TraineeDetail() {
               <p className="text-slate-500">עדיין לא הופק תפריט תזונה למתאמן זה.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-5">
               {meals.sort((a, b) => a.meal_index - b.meal_index).map((meal) => {
-                const isCustomContent = meal.protein_options?.length === 1 && meal.protein_options[0].food_id === 'custom_text';
+                const edit = menuEdits[meal.id];
                 return (
                   <div
                     key={meal.id}
-                    className={`bg-slate-50 p-4 rounded-xl border transition-all ${
+                    className={`bg-slate-50 p-5 rounded-xl border transition-all ${
                       isEditingMenu ? 'border-amber-300 ring-1 ring-amber-200' : 'border-slate-200'
                     }`}
                   >
-                    <div className="flex justify-between items-center mb-3 gap-2">
+                    {/* Meal header */}
+                    <div className="flex justify-between items-center mb-4 gap-2">
                       {isEditingMenu ? (
                         <input
                           type="text"
-                          value={menuEdits[meal.id]?.meal_name ?? meal.meal_name}
+                          value={edit?.meal_name ?? meal.meal_name}
                           onChange={e =>
                             setMenuEdits(prev => ({
                               ...prev,
@@ -675,52 +721,109 @@ export function TraineeDetail() {
                         ~{meal.target_calories} קק״ל
                       </span>
                     </div>
-                    
-                    {isEditingMenu ? (
-                      <textarea
-                        value={menuEdits[meal.id]?.meal_content ?? ''}
-                        onChange={e =>
-                          setMenuEdits(prev => ({
-                            ...prev,
-                            [meal.id]: { ...prev[meal.id], meal_content: e.target.value },
-                          }))
-                        }
-                        className="w-full min-h-[140px] font-medium text-slate-800 bg-white border border-amber-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 text-sm whitespace-pre-wrap resize-y mt-2"
-                        placeholder="הזן כאן את פירוט הארוחה..."
-                        dir="rtl"
-                      />
-                    ) : isCustomContent ? (
-                      <div className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed mt-2 p-3 bg-white rounded-lg border border-slate-100 font-medium">
-                        {meal.protein_options[0].food_name}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {meal.carb_options?.length > 0 && (
-                          <div>
-                            <p className="text-xs font-bold text-blue-600 mb-1 border-b border-blue-100 pb-1">פחמימות (כ-{meal.target_carbs}g)</p>
-                            <ul className="text-xs text-slate-600 space-y-1">
-                              {meal.carb_options.map(opt => <li key={opt.food_id}>• {opt.grams}g - {opt.food_name}</li>)}
+
+                    {/* Macro columns */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Render each category column */}
+                      {([
+                        { key: 'carb_options' as const, label: 'פחמימות', color: 'blue', target: meal.target_carbs },
+                        { key: 'protein_options' as const, label: 'חלבונים', color: 'emerald', target: meal.target_protein },
+                        { key: 'fat_options' as const, label: 'שומנים', color: 'amber', target: meal.target_fat },
+                      ]).map(col => {
+                        const items: MealFoodOption[] = isEditingMenu ? (edit?.[col.key] ?? []) : (meal[col.key] ?? []);
+                        const borderColor = `border-${col.color}-200`;
+                        const headerColor = `text-${col.color}-600`;
+
+                        return (
+                          <div key={col.key} className={`bg-white rounded-lg border ${borderColor} p-3`}>
+                            <p className={`text-xs font-bold ${headerColor} mb-2 border-b pb-1.5`}>
+                              {col.label} (כ-{col.target}g)
+                            </p>
+
+                            {/* List existing items */}
+                            <ul className="text-xs text-slate-600 space-y-1.5 mb-2">
+                              {items.map((opt) => (
+                                <li key={opt.food_id} className="flex items-center justify-between gap-1 bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100">
+                                  <span className="flex-1 truncate">• {opt.grams}g – {opt.food_name}</span>
+                                  {isEditingMenu && (
+                                    <button
+                                      onClick={() => handleRemoveItem(meal.id, col.key, opt.food_id)}
+                                      className="text-red-400 hover:text-red-600 flex-shrink-0 p-0.5 hover:bg-red-50 rounded transition-colors"
+                                      title="הסר"
+                                    >
+                                      <X size={13} />
+                                    </button>
+                                  )}
+                                </li>
+                              ))}
+                              {items.length === 0 && (
+                                <li className="text-slate-400 italic text-[11px]">אין פריטים</li>
+                              )}
                             </ul>
+
+                            {/* Add new item form (only in edit mode) */}
+                            {isEditingMenu && (
+                              <div className="border-t border-slate-100 pt-2 space-y-1.5">
+                                {/* Search input */}
+                                <div className="relative">
+                                  <Search size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                                  <input
+                                    type="text"
+                                    placeholder="חפש מזון..."
+                                    value={foodSearch[meal.id]?.[col.key] || ''}
+                                    onChange={e => setFoodSearch(prev => ({
+                                      ...prev,
+                                      [meal.id]: { ...prev[meal.id], [col.key]: e.target.value },
+                                    }))}
+                                    className="w-full text-[11px] bg-slate-50 border border-slate-200 rounded px-6 py-1 outline-none focus:ring-1 focus:ring-amber-300"
+                                  />
+                                </div>
+                                <select
+                                  value={addForms[meal.id]?.[col.key]?.foodId || ''}
+                                  onChange={e => setAddForms(prev => ({
+                                    ...prev,
+                                    [meal.id]: {
+                                      ...prev[meal.id],
+                                      [col.key]: { foodId: e.target.value, grams: prev[meal.id]?.[col.key]?.grams || 100 },
+                                    },
+                                  }))}
+                                  className="w-full text-[11px] bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-amber-300"
+                                >
+                                  <option value="">-- בחר מזון --</option>
+                                  {getFoodsByCategory(col.key, meal.id).map(f => (
+                                    <option key={f.id} value={f.id}>{f.name} ({f.calories_per_100g} קק״ל/100g)</option>
+                                  ))}
+                                </select>
+                                <div className="flex gap-1">
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    placeholder="גרם"
+                                    value={addForms[meal.id]?.[col.key]?.grams || ''}
+                                    onChange={e => setAddForms(prev => ({
+                                      ...prev,
+                                      [meal.id]: {
+                                        ...prev[meal.id],
+                                        [col.key]: { foodId: prev[meal.id]?.[col.key]?.foodId || '', grams: Number(e.target.value) },
+                                      },
+                                    }))}
+                                    className="flex-1 text-[11px] bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-amber-300 text-center"
+                                  />
+                                  <button
+                                    onClick={() => handleAddItem(meal.id, col.key)}
+                                    disabled={!addForms[meal.id]?.[col.key]?.foodId}
+                                    className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[11px] font-bold px-2.5 py-1 rounded transition-colors flex items-center gap-1"
+                                  >
+                                    <Plus size={11} />
+                                    הוסף
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {meal.protein_options?.length > 0 && (
-                          <div>
-                            <p className="text-xs font-bold text-emerald-600 mb-1 border-b border-emerald-100 pb-1">חלבונים (כ-{meal.target_protein}g)</p>
-                            <ul className="text-xs text-slate-600 space-y-1">
-                              {meal.protein_options.map(opt => <li key={opt.food_id}>• {opt.grams}g - {opt.food_name}</li>)}
-                            </ul>
-                          </div>
-                        )}
-                        {meal.fat_options?.length > 0 && (
-                          <div>
-                            <p className="text-xs font-bold text-amber-600 mb-1 border-b border-amber-100 pb-1">שומנים (כ-{meal.target_fat}g)</p>
-                            <ul className="text-xs text-slate-600 space-y-1">
-                              {meal.fat_options.map(opt => <li key={opt.food_id}>• {opt.grams}g - {opt.food_name}</li>)}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}
