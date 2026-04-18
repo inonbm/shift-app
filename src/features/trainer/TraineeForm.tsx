@@ -235,6 +235,7 @@ export function TraineeForm() {
                   <input required type="email" name="email" value={formData.email} onChange={handleChange} dir="ltr" placeholder="trainee@example.com" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:outline-none text-left text-lg" />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">סיסמה זמנית</label>
                   <input required type="text" name="password" minLength={6} value={formData.password} onChange={handleChange} dir="ltr" placeholder="לפחות 6 תווים" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:outline-none text-left text-lg" />
                   <p className="text-xs text-slate-500 mt-1.5">שלח סיסמה זו למתאמן כדי שיוכל להתחבר בפעם הראשונה.</p>
                 </div>
