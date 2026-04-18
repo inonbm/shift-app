@@ -7,7 +7,7 @@ import { useWorkoutStore } from '../../stores/workoutStore';
 import { supabase } from '../../lib/supabase';
 import { ResetPasswordModal } from '../../components/ui/ResetPasswordModal';
 import { GOAL_LABELS, ACTIVITY_LEVEL_LABELS, GENDER_LABELS } from '../../types';
-import type { Gender, ActivityLevel, Goal, TraineeData } from '../../types';
+import type { Gender, ActivityLevel, Goal, TraineeData, GeneratedMeal } from '../../types';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from '../../lib/nutrition';
 
 type Tab = 'overview' | 'diet' | 'workouts';
@@ -33,7 +33,7 @@ export function TraineeDetail() {
   // --- Manual menu editing state ---
   const [isEditingMenu, setIsEditingMenu] = useState(false);
   const [isSavingMenu, setIsSavingMenu] = useState(false);
-  const [menuEdits, setMenuEdits] = useState<Record<string, { meal_name: string }>>({});
+  const [menuEdits, setMenuEdits] = useState<Record<string, { meal_name: string; meal_content: string }>>({});
 
   useEffect(() => {
     if (id) {
@@ -178,10 +178,33 @@ export function TraineeDetail() {
   };
 
   // --- Manual menu editing handlers ---
+  const getMealText = (meal: GeneratedMeal) => {
+    // If it's already custom text, just return it
+    if (meal.protein_options.length === 1 && meal.protein_options[0].food_id === 'custom_text') {
+      return meal.protein_options[0].food_name;
+    }
+    
+    // Otherwise, construct textual representation
+    const parts = [];
+    if (meal.carb_options?.length > 0) {
+      parts.push(`פחמימות (כ-${meal.target_carbs}g):\n` + meal.carb_options.map(opt => `• ${opt.grams}g - ${opt.food_name}`).join('\n'));
+    }
+    if (meal.protein_options?.length > 0) {
+      parts.push(`חלבונים (כ-${meal.target_protein}g):\n` + meal.protein_options.map(opt => `• ${opt.grams}g - ${opt.food_name}`).join('\n'));
+    }
+    if (meal.fat_options?.length > 0) {
+      parts.push(`שומנים (כ-${meal.target_fat}g):\n` + meal.fat_options.map(opt => `• ${opt.grams}g - ${opt.food_name}`).join('\n'));
+    }
+    return parts.join('\n\n');
+  };
+
   const handleEditMenuClick = () => {
-    const edits: Record<string, { meal_name: string }> = {};
+    const edits: Record<string, { meal_name: string; meal_content: string }> = {};
     meals.forEach(m => {
-      edits[m.id] = { meal_name: m.meal_name };
+      edits[m.id] = { 
+        meal_name: m.meal_name,
+        meal_content: getMealText(m)
+      };
     });
     setMenuEdits(edits);
     setIsEditingMenu(true);
@@ -193,7 +216,20 @@ export function TraineeDetail() {
       const updates = Object.entries(menuEdits).map(([mealId, fields]) =>
         supabase
           .from('generated_meals')
-          .update({ meal_name: fields.meal_name })
+          .update({ 
+            meal_name: fields.meal_name,
+            protein_options: [{
+              food_id: 'custom_text',
+              food_name: fields.meal_content,
+              grams: 0,
+              protein_g: 0,
+              carbs_g: 0,
+              fat_g: 0,
+              calories: 0
+            }],
+            carb_options: [],
+            fat_options: []
+          })
           .eq('id', mealId)
       );
       await Promise.all(updates);
@@ -610,56 +646,84 @@ export function TraineeDetail() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {meals.sort((a, b) => a.meal_index - b.meal_index).map((meal) => (
-                <div
-                  key={meal.id}
-                  className={`bg-slate-50 p-4 rounded-xl border transition-all ${
-                    isEditingMenu ? 'border-amber-300 ring-1 ring-amber-200' : 'border-slate-200'
-                  }`}
-                >
-                  <div className="flex justify-between items-center mb-3 gap-2">
+              {meals.sort((a, b) => a.meal_index - b.meal_index).map((meal) => {
+                const isCustomContent = meal.protein_options?.length === 1 && meal.protein_options[0].food_id === 'custom_text';
+                return (
+                  <div
+                    key={meal.id}
+                    className={`bg-slate-50 p-4 rounded-xl border transition-all ${
+                      isEditingMenu ? 'border-amber-300 ring-1 ring-amber-200' : 'border-slate-200'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center mb-3 gap-2">
+                      {isEditingMenu ? (
+                        <input
+                          type="text"
+                          value={menuEdits[meal.id]?.meal_name ?? meal.meal_name}
+                          onChange={e =>
+                            setMenuEdits(prev => ({
+                              ...prev,
+                              [meal.id]: { ...prev[meal.id], meal_name: e.target.value },
+                            }))
+                          }
+                          className="flex-1 font-bold text-slate-800 bg-white border border-amber-300 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-amber-400 text-sm"
+                        />
+                      ) : (
+                        <h3 className="font-bold text-slate-800">{meal.meal_name}</h3>
+                      )}
+                      <span className="text-xs font-bold bg-white px-2 py-1 rounded text-purple-600 border border-slate-200 whitespace-nowrap flex-shrink-0">
+                        ~{meal.target_calories} קק״ל
+                      </span>
+                    </div>
+                    
                     {isEditingMenu ? (
-                      <input
-                        type="text"
-                        value={menuEdits[meal.id]?.meal_name ?? meal.meal_name}
+                      <textarea
+                        value={menuEdits[meal.id]?.meal_content ?? ''}
                         onChange={e =>
                           setMenuEdits(prev => ({
                             ...prev,
-                            [meal.id]: { ...prev[meal.id], meal_name: e.target.value },
+                            [meal.id]: { ...prev[meal.id], meal_content: e.target.value },
                           }))
                         }
-                        className="flex-1 font-bold text-slate-800 bg-white border border-amber-300 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-amber-400 text-sm"
+                        className="w-full min-h-[140px] font-medium text-slate-800 bg-white border border-amber-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400 text-sm whitespace-pre-wrap resize-y mt-2"
+                        placeholder="הזן כאן את פירוט הארוחה..."
+                        dir="rtl"
                       />
+                    ) : isCustomContent ? (
+                      <div className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed mt-2 p-3 bg-white rounded-lg border border-slate-100 font-medium">
+                        {meal.protein_options[0].food_name}
+                      </div>
                     ) : (
-                      <h3 className="font-bold text-slate-800">{meal.meal_name}</h3>
+                      <div className="space-y-3">
+                        {meal.carb_options?.length > 0 && (
+                          <div>
+                            <p className="text-xs font-bold text-blue-600 mb-1 border-b border-blue-100 pb-1">פחמימות (כ-{meal.target_carbs}g)</p>
+                            <ul className="text-xs text-slate-600 space-y-1">
+                              {meal.carb_options.map(opt => <li key={opt.food_id}>• {opt.grams}g - {opt.food_name}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {meal.protein_options?.length > 0 && (
+                          <div>
+                            <p className="text-xs font-bold text-emerald-600 mb-1 border-b border-emerald-100 pb-1">חלבונים (כ-{meal.target_protein}g)</p>
+                            <ul className="text-xs text-slate-600 space-y-1">
+                              {meal.protein_options.map(opt => <li key={opt.food_id}>• {opt.grams}g - {opt.food_name}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {meal.fat_options?.length > 0 && (
+                          <div>
+                            <p className="text-xs font-bold text-amber-600 mb-1 border-b border-amber-100 pb-1">שומנים (כ-{meal.target_fat}g)</p>
+                            <ul className="text-xs text-slate-600 space-y-1">
+                              {meal.fat_options.map(opt => <li key={opt.food_id}>• {opt.grams}g - {opt.food_name}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
                     )}
-                    <span className="text-xs font-bold bg-white px-2 py-1 rounded text-purple-600 border border-slate-200 whitespace-nowrap flex-shrink-0">
-                      ~{meal.target_calories} קק״ל
-                    </span>
                   </div>
-                  
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-xs font-bold text-blue-600 mb-1 border-b border-blue-100 pb-1">פחמימות (כ-{meal.target_carbs}g)</p>
-                      <ul className="text-xs text-slate-600 space-y-1">
-                        {meal.carb_options.map(opt => <li key={opt.food_id}>• {opt.grams}g - {opt.food_name}</li>)}
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-emerald-600 mb-1 border-b border-emerald-100 pb-1">חלבונים (כ-{meal.target_protein}g)</p>
-                      <ul className="text-xs text-slate-600 space-y-1">
-                        {meal.protein_options.map(opt => <li key={opt.food_id}>• {opt.grams}g - {opt.food_name}</li>)}
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-amber-600 mb-1 border-b border-amber-100 pb-1">שומנים (כ-{meal.target_fat}g)</p>
-                      <ul className="text-xs text-slate-600 space-y-1">
-                        {meal.fat_options.map(opt => <li key={opt.food_id}>• {opt.grams}g - {opt.food_name}</li>)}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
