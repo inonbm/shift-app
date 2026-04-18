@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronRight, Calculator, Flame, Loader2, AlertCircle, Edit2, Save, Trash2, Utensils, Dumbbell, Sparkles, Plus, KeyRound, Clock, CalendarDays, MessageCircle } from 'lucide-react';
+import { ChevronRight, Calculator, Flame, Loader2, AlertCircle, Edit2, Save, Trash2, Utensils, Dumbbell, Sparkles, Plus, KeyRound, Clock, CalendarDays, MessageCircle, SlidersHorizontal, CheckCheck, X } from 'lucide-react';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { useDietStore } from '../../stores/dietStore';
 import { useWorkoutStore } from '../../stores/workoutStore';
@@ -24,6 +24,16 @@ export function TraineeDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<TraineeData>>({});
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+
+  // --- Manual nutrition target override state ---
+  const [isEditingTargets, setIsEditingTargets] = useState(false);
+  const [isSavingTargets, setIsSavingTargets] = useState(false);
+  const [targetsForm, setTargetsForm] = useState({ goal_calories: 0, protein_grams: 0, carbs_grams: 0, fat_grams: 0 });
+
+  // --- Manual menu editing state ---
+  const [isEditingMenu, setIsEditingMenu] = useState(false);
+  const [isSavingMenu, setIsSavingMenu] = useState(false);
+  const [menuEdits, setMenuEdits] = useState<Record<string, { meal_name: string }>>({});
 
   useEffect(() => {
     if (id) {
@@ -133,6 +143,67 @@ export function TraineeDetail() {
       await generateDiet(id);
     } catch (err) {
       console.error('Failed to generate diet', err);
+    }
+  };
+
+  // --- Manual nutrition targets handlers ---
+  const handleEditTargetsClick = () => {
+    if (!data) return;
+    setTargetsForm({
+      goal_calories: Math.round(data.goal_calories ?? 0),
+      protein_grams: Math.round(data.protein_grams ?? 0),
+      carbs_grams: Math.round(data.carbs_grams ?? 0),
+      fat_grams: Math.round(data.fat_grams ?? 0),
+    });
+    setIsEditingTargets(true);
+  };
+
+  const handleSaveTargets = async () => {
+    if (!id) return;
+    setIsSavingTargets(true);
+    try {
+      await updateTraineeData(id, {
+        goal_calories: targetsForm.goal_calories,
+        protein_grams: targetsForm.protein_grams,
+        carbs_grams: targetsForm.carbs_grams,
+        fat_grams: targetsForm.fat_grams,
+      });
+      await fetchTraineeById(id);
+      setIsEditingTargets(false);
+    } catch (err) {
+      console.error('Failed to save targets', err);
+    } finally {
+      setIsSavingTargets(false);
+    }
+  };
+
+  // --- Manual menu editing handlers ---
+  const handleEditMenuClick = () => {
+    const edits: Record<string, { meal_name: string }> = {};
+    meals.forEach(m => {
+      edits[m.id] = { meal_name: m.meal_name };
+    });
+    setMenuEdits(edits);
+    setIsEditingMenu(true);
+  };
+
+  const handleSaveMenu = async () => {
+    setIsSavingMenu(true);
+    try {
+      const updates = Object.entries(menuEdits).map(([mealId, fields]) =>
+        supabase
+          .from('generated_meals')
+          .update({ meal_name: fields.meal_name })
+          .eq('id', mealId)
+      );
+      await Promise.all(updates);
+      // Refresh meals in store
+      if (id) await fetchDiet(id);
+      setIsEditingMenu(false);
+    } catch (err) {
+      console.error('Failed to save menu edits', err);
+    } finally {
+      setIsSavingMenu(false);
     }
   };
 
@@ -354,43 +425,119 @@ export function TraineeDetail() {
 
           {/* Nutrition Target Card */}
           <div className={`text-white p-6 rounded-2xl shadow-lg space-y-4 transition-colors ${isEditing ? 'bg-slate-700' : 'bg-slate-800'}`}>
-            <div className="flex items-center gap-2 pb-3 border-b border-slate-700">
-              <Flame className="text-emerald-400" />
-              <h2 className="text-lg font-bold">יעדי תזונה (יומי)</h2>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-700">
+              <div className="flex items-center gap-2">
+                <Flame className="text-emerald-400" />
+                <h2 className="text-lg font-bold">יעדי תזונה (יומי)</h2>
+              </div>
+              {data && !isEditing && !isEditingTargets && (
+                <button
+                  onClick={handleEditTargetsClick}
+                  className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors"
+                  title="עריכה ידנית של יעדי תזונה"
+                >
+                  <SlidersHorizontal size={13} />
+                  עריכת יעדים
+                </button>
+              )}
             </div>
 
             {data ? (
-              <div className={`space-y-4 ${isEditing ? 'opacity-50' : 'opacity-100'} transition-opacity delay-100`}>
-                <div className="bg-slate-700/50 p-4 rounded-xl border border-slate-600 text-center">
-                  <p className="text-emerald-300 font-medium mb-1 text-sm">הקצבה יומית (קלוריות)</p>
-                  <div className="text-4xl font-bold text-white flex items-baseline justify-center gap-1">
-                    {data.goal_calories ? Math.round(data.goal_calories).toLocaleString() : '---'}
-                    <span className="text-base text-slate-400 font-normal">קק״ל</span>
+              isEditingTargets ? (
+                <div className="space-y-3">
+                  <div className="bg-slate-700/50 p-4 rounded-xl border border-amber-500/40">
+                    <label className="block text-emerald-300 font-medium text-xs mb-1">קלוריות יומיות (קק״ל)</label>
+                    <input
+                      type="number"
+                      value={targetsForm.goal_calories}
+                      onChange={e => setTargetsForm(f => ({ ...f, goal_calories: Number(e.target.value) }))}
+                      className="w-full bg-slate-900/70 text-white text-2xl font-bold text-center rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-400 border border-slate-600"
+                    />
                   </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                      <span className="text-slate-300 min-w-[60px]">חלבון</span>
+                      <input
+                        type="number"
+                        value={targetsForm.protein_grams}
+                        onChange={e => setTargetsForm(f => ({ ...f, protein_grams: Number(e.target.value) }))}
+                        className="flex-1 bg-slate-900/70 text-emerald-400 font-bold text-right rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-emerald-400 border border-slate-600 text-sm"
+                      />
+                      <span className="text-slate-400 text-sm">g</span>
+                    </div>
+                    <div className="flex items-center gap-3 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                      <span className="text-slate-300 min-w-[60px]">שומן</span>
+                      <input
+                        type="number"
+                        value={targetsForm.fat_grams}
+                        onChange={e => setTargetsForm(f => ({ ...f, fat_grams: Number(e.target.value) }))}
+                        className="flex-1 bg-slate-900/70 text-purple-400 font-bold text-right rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-purple-400 border border-slate-600 text-sm"
+                      />
+                      <span className="text-slate-400 text-sm">g</span>
+                    </div>
+                    <div className="flex items-center gap-3 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                      <span className="text-slate-300 min-w-[60px]">פחמימה</span>
+                      <input
+                        type="number"
+                        value={targetsForm.carbs_grams}
+                        onChange={e => setTargetsForm(f => ({ ...f, carbs_grams: Number(e.target.value) }))}
+                        className="flex-1 bg-slate-900/70 text-blue-400 font-bold text-right rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-blue-400 border border-slate-600 text-sm"
+                      />
+                      <span className="text-slate-400 text-sm">g</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => setIsEditingTargets(false)}
+                      disabled={isSavingTargets}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg font-bold text-sm transition-colors"
+                    >
+                      <X size={14} /> ביטול
+                    </button>
+                    <button
+                      onClick={handleSaveTargets}
+                      disabled={isSavingTargets}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg font-bold text-sm transition-colors"
+                    >
+                      {isSavingTargets ? <Loader2 size={14} className="animate-spin" /> : <CheckCheck size={14} />}
+                      שמור יעדים
+                    </button>
+                  </div>
+                  <p className="text-xs text-amber-300/80 text-center">⚠ שינוי ידני יחליף את חישוב ה-BMR</p>
                 </div>
+              ) : (
+                <div className={`space-y-4 ${isEditing ? 'opacity-50' : 'opacity-100'} transition-opacity delay-100`}>
+                  <div className="bg-slate-700/50 p-4 rounded-xl border border-slate-600 text-center">
+                    <p className="text-emerald-300 font-medium mb-1 text-sm">הקצבה יומית (קלוריות)</p>
+                    <div className="text-4xl font-bold text-white flex items-baseline justify-center gap-1">
+                      {data.goal_calories ? Math.round(data.goal_calories).toLocaleString() : '---'}
+                      <span className="text-base text-slate-400 font-normal">קק״ל</span>
+                    </div>
+                  </div>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
-                    <span className="text-slate-300">חלבון</span>
-                    <span className="font-bold text-emerald-400 text-lg">{data.protein_grams}g</span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                      <span className="text-slate-300">חלבון</span>
+                      <span className="font-bold text-emerald-400 text-lg">{data.protein_grams}g</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                      <span className="text-slate-300">שומן</span>
+                      <span className="font-bold text-purple-400 text-lg">{data.fat_grams}g</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+                      <span className="text-slate-300">פחמימה</span>
+                      <span className="font-bold text-blue-400 text-lg">{data.carbs_grams}g</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
-                    <span className="text-slate-300">שומן</span>
-                    <span className="font-bold text-purple-400 text-lg">{data.fat_grams}g</span>
-                  </div>
-                  <div className="flex justify-between items-center bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
-                    <span className="text-slate-300">פחמימה</span>
-                    <span className="font-bold text-blue-400 text-lg">{data.carbs_grams}g</span>
-                  </div>
+                  
+                  {isEditing && (
+                    <div className="text-center text-xs text-slate-400 mt-4 leading-relaxed">
+                      היעדים יעודכנו אוטומטית לפי הנוסחאות<br/>
+                      לאחר לחיצה על לחצן השמירה.
+                    </div>
+                  )}
                 </div>
-                
-                {isEditing && (
-                  <div className="text-center text-xs text-slate-400 mt-4 leading-relaxed">
-                    היעדים יעודכנו אוטומטית לפי הנוסחאות<br/>
-                    לאחר לחיצה על לחצן השמירה.
-                  </div>
-                )}
-              </div>
+              )
             ) : (
               <p className="text-sm text-slate-400">יש להזין נתונים פיזיים כדי לראות יעדי תזונה.</p>
             )}
@@ -408,15 +555,53 @@ export function TraineeDetail() {
               <h2 className="text-lg font-bold text-slate-800">הפקת תפריט אלגוריתמי</h2>
               <p className="text-sm text-slate-500">שיבוץ אוטומטי של מקורות מזון ממאגר המאמן בהתאם ליעדים</p>
             </div>
-            <button
-              onClick={handleGenerateDiet}
-              disabled={isDietLoading}
-              className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-70 whitespace-nowrap"
-            >
-              {isDietLoading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-              הפקת תפריט תזונה
-            </button>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {meals.length > 0 && !isEditingMenu && (
+                <button
+                  onClick={handleEditMenuClick}
+                  disabled={isDietLoading}
+                  className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-70 whitespace-nowrap text-sm"
+                >
+                  <Edit2 size={16} />
+                  עריכת תפריט
+                </button>
+              )}
+              {isEditingMenu && (
+                <>
+                  <button
+                    onClick={() => setIsEditingMenu(false)}
+                    disabled={isSavingMenu}
+                    className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 text-sm"
+                  >
+                    <X size={16} /> ביטול
+                  </button>
+                  <button
+                    onClick={handleSaveMenu}
+                    disabled={isSavingMenu}
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-sm text-sm"
+                  >
+                    {isSavingMenu ? <Loader2 size={16} className="animate-spin" /> : <CheckCheck size={16} />}
+                    שמור שינויים
+                  </button>
+                </>
+              )}
+              <button
+                onClick={handleGenerateDiet}
+                disabled={isDietLoading || isSavingMenu}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-70 whitespace-nowrap"
+              >
+                {isDietLoading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                הפקת תפריט תזונה
+              </button>
+            </div>
           </div>
+
+          {isEditingMenu && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-amber-700 text-sm flex items-center gap-2">
+              <Edit2 size={14} className="flex-shrink-0" />
+              מצב עריכה פעיל – ניתן לשנות את שמות הארוחות. לחץ על ״שמור שינויים״ לאישור.
+            </div>
+          )}
 
           {meals.length === 0 ? (
             <div className="text-center py-12">
@@ -426,10 +611,29 @@ export function TraineeDetail() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {meals.sort((a, b) => a.meal_index - b.meal_index).map((meal) => (
-                <div key={meal.id} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-bold text-slate-800">{meal.meal_name}</h3>
-                    <span className="text-xs font-bold bg-white px-2 py-1 rounded text-purple-600 border border-slate-200">
+                <div
+                  key={meal.id}
+                  className={`bg-slate-50 p-4 rounded-xl border transition-all ${
+                    isEditingMenu ? 'border-amber-300 ring-1 ring-amber-200' : 'border-slate-200'
+                  }`}
+                >
+                  <div className="flex justify-between items-center mb-3 gap-2">
+                    {isEditingMenu ? (
+                      <input
+                        type="text"
+                        value={menuEdits[meal.id]?.meal_name ?? meal.meal_name}
+                        onChange={e =>
+                          setMenuEdits(prev => ({
+                            ...prev,
+                            [meal.id]: { ...prev[meal.id], meal_name: e.target.value },
+                          }))
+                        }
+                        className="flex-1 font-bold text-slate-800 bg-white border border-amber-300 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-amber-400 text-sm"
+                      />
+                    ) : (
+                      <h3 className="font-bold text-slate-800">{meal.meal_name}</h3>
+                    )}
+                    <span className="text-xs font-bold bg-white px-2 py-1 rounded text-purple-600 border border-slate-200 whitespace-nowrap flex-shrink-0">
                       ~{meal.target_calories} קק״ל
                     </span>
                   </div>
