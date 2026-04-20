@@ -17,7 +17,7 @@ export type ActivityLevel =
 
 export type Goal = 'cut' | 'bulk' | 'maintenance';
 
-export type FoodCategory = 'protein' | 'carb' | 'fat';
+export type FoodCategory = 'protein' | 'carb' | 'fat' | 'vegetable' | 'other';
 
 // --- Database Row Types ---
 
@@ -220,4 +220,6 @@ export const FOOD_CATEGORY_LABELS: Record<FoodCategory, string> = {
   protein: 'חלבון',
   carb: 'פחמימה',
   fat: 'שומן',
+  vegetable: 'ירקות',
+  other: 'אחר'
 };

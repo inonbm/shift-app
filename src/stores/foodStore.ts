@@ -1,25 +1,16 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import type { Food, CreateFoodInput } from '../types';
+import type { Food } from '../types';
 
 interface FoodState {
   foods: Food[];
   isLoading: boolean;
   error: string | null;
-
-  /** Fetch all foods from the database */
+  
   fetchFoods: () => Promise<void>;
-
-  /** Trainer: create a new food entry */
-  createFood: (input: CreateFoodInput) => Promise<void>;
-
-  /** Trainer: update an existing food entry */
-  updateFood: (id: string, input: Partial<CreateFoodInput>) => Promise<void>;
-
-  /** Trainer: delete a food entry */
-  deleteFood: (id: string) => Promise<void>;
-
-  /** Clear error */
+  createFood: (food: Omit<Food, 'id' | 'created_at' | 'created_by'>) => Promise<void>;
+  updateFood: (id: string, updates: Partial<Food>) => Promise<void>;
+  deleteFood: (id: string, createdBy: string, currentUserId: string, currentUserRole: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -31,73 +22,71 @@ export const useFoodStore = create<FoodState>((set, get) => ({
   fetchFoods: async () => {
     try {
       set({ isLoading: true, error: null });
-
       const { data, error } = await supabase
         .from('foods')
         .select('*')
-        .order('primary_category')
         .order('name');
-
+        
       if (error) throw error;
-
-      set({ foods: (data || []) as Food[], isLoading: false });
-    } catch (error) {
+      set({ foods: data || [], isLoading: false });
+    } catch (error: any) {
       console.error('Failed to fetch foods:', error);
-      set({
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch foods',
-      });
+      set({ isLoading: false, error: error.message || 'שגיאה בשליפת מאכלים' });
     }
   },
 
-  createFood: async (input: CreateFoodInput) => {
+  createFood: async (food) => {
     try {
       set({ isLoading: true, error: null });
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated');
 
       const { error } = await supabase
         .from('foods')
-        .insert({ ...input, created_by: user.id });
+        .insert({
+          name: food.name,
+          primary_category: food.primary_category,
+          calories_per_100g: food.calories_per_100g,
+          protein_per_100g: food.protein_per_100g,
+          carbs_per_100g: food.carbs_per_100g,
+          fats_per_100g: food.fats_per_100g,
+          created_by: userData.user.id
+        });
 
       if (error) throw error;
-
-      // Refresh the foods list
       await get().fetchFoods();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create food:', error);
-      set({
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to create food',
-      });
+      set({ isLoading: false, error: error.message || 'שגיאה ביצירת מאכל' });
+      throw error;
     }
   },
 
-  updateFood: async (id: string, input: Partial<CreateFoodInput>) => {
+  updateFood: async (id, updates) => {
     try {
       set({ isLoading: true, error: null });
-
+      
       const { error } = await supabase
         .from('foods')
-        .update(input)
+        .update(updates)
         .eq('id', id);
 
       if (error) throw error;
-
       await get().fetchFoods();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update food:', error);
-      set({
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to update food',
-      });
+      set({ isLoading: false, error: error.message || 'שגיאה בעדכון מאכל' });
+      throw error;
     }
   },
 
-  deleteFood: async (id: string) => {
+  deleteFood: async (id, createdBy, currentUserId, currentUserRole) => {
     try {
       set({ isLoading: true, error: null });
+      
+      if (currentUserRole !== 'admin' && createdBy !== currentUserId) {
+        throw new Error('אינך מורשה למחוק מאכל זה. ניתן למחוק רק מאכלים שאתה יצרת.');
+      }
 
       const { error } = await supabase
         .from('foods')
@@ -105,16 +94,17 @@ export const useFoodStore = create<FoodState>((set, get) => ({
         .eq('id', id);
 
       if (error) throw error;
-
-      await get().fetchFoods();
-    } catch (error) {
+      
+      set(state => ({
+        foods: state.foods.filter(f => f.id !== id),
+        isLoading: false
+      }));
+    } catch (error: any) {
       console.error('Failed to delete food:', error);
-      set({
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to delete food',
-      });
+      set({ isLoading: false, error: error.message || 'שגיאה במחיקת מאכל' });
+      throw error;
     }
   },
 
-  clearError: () => set({ error: null }),
+  clearError: () => set({ error: null })
 }));

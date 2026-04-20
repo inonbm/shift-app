@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Activity, LogOut, Utensils, Dumbbell, ShieldAlert } from 'lucide-react';
+import { Activity, LogOut, Utensils, Dumbbell, ShieldAlert, Apple } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 
 export function Header() {
@@ -45,6 +45,15 @@ export function Header() {
         {/* User Actions */}
         {user && profile && (
           <div className="flex items-center gap-4">
+            {(profile.role === 'trainer' || profile.role === 'admin') && (
+              <Link 
+                to="/trainer/foods"
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-sm font-bold transition-colors mr-2"
+              >
+                <Apple size={16} />
+                ניהול מזון
+              </Link>
+            )}
             {profile.role === 'admin' && (
               <Link 
                 to="/admin"
