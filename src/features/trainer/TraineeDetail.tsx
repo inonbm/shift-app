@@ -190,7 +190,7 @@ export function TraineeDetail() {
 
   // --- Structured menu editing handlers ---
   const buildMealFoodOption = (food: Food, grams: number): MealFoodOption => {
-    const factor = grams / 100;
+    const factor = grams / (food.serving_size || 100);
     return {
       food_id: food.id,
       food_name: food.name,
@@ -791,7 +791,7 @@ export function TraineeDetail() {
                                 >
                                   <option value="">-- בחר מזון --</option>
                                   {getFoodsByCategory(col.key, meal.id).map(f => (
-                                    <option key={f.id} value={f.id}>{f.name} ({f.calories_per_100g} קק״ל/100g)</option>
+                                    <option key={f.id} value={f.id}>{f.name} ({f.calories_per_100g} קק״ל/{f.serving_size || 100}g)</option>
                                   ))}
                                 </select>
                                 <div className="flex gap-1">

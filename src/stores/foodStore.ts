@@ -46,6 +46,7 @@ export const useFoodStore = create<FoodState>((set, get) => ({
         .insert({
           name: food.name,
           primary_category: food.primary_category,
+          serving_size: food.serving_size,
           calories_per_100g: food.calories_per_100g,
           protein_per_100g: food.protein_per_100g,
           carbs_per_100g: food.carbs_per_100g,

@@ -57,6 +57,7 @@ export interface Food {
   id: string;
   name: string;
   primary_category: FoodCategory;
+  serving_size: number;
   calories_per_100g: number;
   protein_per_100g: number;
   carbs_per_100g: number;

@@ -33,17 +33,19 @@ function resolveOptions(
     const macroPer100 = food[primaryKey];
     if (macroPer100 <= 0) continue;
 
-    // e.g. T_carb = 50g. Oats have 66g carbs per 100g.
-    // Grams needed = 50 / 0.66 = ~75.7g of Oats
-    const gramsNeeded = Math.round(targetGrams / (macroPer100 / 100));
+    const referenceWeight = food.serving_size || 100;
+    
+    // e.g. T_carb = 50g. Oats have 66g carbs per serving (e.g., 100g).
+    // Grams needed = 50 / (0.66) = ~75.7g of Oats
+    const gramsNeeded = Math.round(targetGrams / (macroPer100 / referenceWeight));
     
     // Safety check in case of anomalous math
     if (gramsNeeded > 2000) continue; // prevents suggesting 2kg of spinach for carbs
 
-    const protein = (food.protein_per_100g / 100) * gramsNeeded;
-    const carbs = (food.carbs_per_100g / 100) * gramsNeeded;
-    const fat = (food.fats_per_100g / 100) * gramsNeeded;
-    const kcal = (food.calories_per_100g / 100) * gramsNeeded;
+    const protein = (food.protein_per_100g / referenceWeight) * gramsNeeded;
+    const carbs = (food.carbs_per_100g / referenceWeight) * gramsNeeded;
+    const fat = (food.fats_per_100g / referenceWeight) * gramsNeeded;
+    const kcal = (food.calories_per_100g / referenceWeight) * gramsNeeded;
 
     options.push({
       food_id: food.id,
