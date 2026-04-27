@@ -82,7 +82,11 @@ serve(async (req) => {
 
     // Attempt Deletion sequence
     // 1. Manually wipe profile row to unlock FK constraint limitations if the local BD handles CASCADE weirdly
-    await supabaseAdmin.from('profiles').delete().eq('id', targetUserId);
+    const { error: profileDeleteError } = await supabaseAdmin.from('profiles').delete().eq('id', targetUserId);
+    
+    if (profileDeleteError) {
+      throw new Error(`Profile Deletion Error: ${profileDeleteError.message}`);
+    }
     
     // 2. Erase from Auth fully
     const { error: deletionError } = await supabaseAdmin.auth.admin.deleteUser(targetUserId);
