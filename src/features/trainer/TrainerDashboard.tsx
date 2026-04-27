@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Plus, Users, Flame, ChevronLeft, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, Users, Flame, ChevronLeft, Loader2, AlertCircle, Search } from 'lucide-react';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { GOAL_LABELS } from '../../types';
 import { calculateBMR, calculateTDEE, calculateTargetCalories } from '../../lib/nutrition';
@@ -8,6 +8,12 @@ import { calculateBMR, calculateTDEE, calculateTargetCalories } from '../../lib/
 export function TrainerDashboard() {
   const { trainees, isLoading, error, fetchTrainees } = useTraineeStore();
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredTrainees = trainees.filter(trainee => 
+    trainee.full_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    trainee.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   useEffect(() => {
     fetchTrainees();
@@ -58,8 +64,35 @@ export function TrainerDashboard() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {trainees.map((trainee) => {
+        <div className="space-y-6">
+          {/* Search Bar */}
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3">
+            <Search className="text-slate-400" size={20} />
+            <input 
+              type="text" 
+              placeholder="חיפוש לפי שם או דוא״ל..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-transparent outline-none text-slate-700 placeholder:text-slate-400"
+            />
+            {searchQuery && (
+              <div className="text-sm font-bold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                סה״כ: {filteredTrainees.length} מתאמנים
+              </div>
+            )}
+          </div>
+
+          {filteredTrainees.length === 0 ? (
+            <div className="text-center py-20 bg-white rounded-2xl border border-slate-100 border-dashed">
+              <Search size={48} className="mx-auto text-slate-300 mb-4" />
+              <h3 className="text-lg font-bold text-slate-700">לא נמצאו מתאמנים התואמים לחיפוש</h3>
+              <p className="text-slate-500 mt-1 max-w-sm mx-auto">
+                נסה לשנות את מילות החיפוש.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredTrainees.map((trainee) => {
             const data = trainee.trainee_data;
             const goalLabel = data ? GOAL_LABELS[data.goal] : 'לא הוגדר';
             
@@ -107,6 +140,8 @@ export function TrainerDashboard() {
               </Link>
             );
           })}
+            </div>
+          )}
         </div>
       )}
     </div>
