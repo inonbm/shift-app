@@ -4,6 +4,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { useDietStore } from '../../stores/dietStore';
 import type { MealFoodOption } from '../../types';
+import { MEASUREMENT_UNIT_LABELS } from '../../types';
 import { RecipeModal } from './RecipeModal';
 import { generateRecipeWithAI } from '../../lib/gemini';
 
@@ -145,7 +146,9 @@ export function DietView() {
                     {opt.food_name}
                   </p>
                   <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-500 font-medium">
-                    <span className="bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">{opt.grams} גרם</span>
+                    <span className="bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">
+                      {opt.grams} {(!opt.unit || opt.unit === 'g') ? 'גרם' : MEASUREMENT_UNIT_LABELS[opt.unit]}
+                    </span>
                     <span className="text-slate-400">({opt.calories} קק״ל)</span>
                   </div>
                 </div>

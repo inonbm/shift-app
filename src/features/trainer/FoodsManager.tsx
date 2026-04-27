@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react';
 import { Search, Loader2, AlertCircle, Edit2, Trash2, Plus, Apple, Save, X } from 'lucide-react';
 import { useFoodStore } from '../../stores/foodStore';
 import { useAuthStore } from '../../stores/authStore';
-import { FOOD_CATEGORY_LABELS } from '../../types';
-import type { Food, FoodCategory } from '../../types';
+import { FOOD_CATEGORY_LABELS, MEASUREMENT_UNIT_LABELS } from '../../types';
+import type { Food, FoodCategory, MeasurementUnit } from '../../types';
 
 export function FoodsManager() {
   const { profile } = useAuthStore();
@@ -112,7 +112,7 @@ export function FoodsManager() {
                 <tr className="border-b border-slate-200 text-sm text-slate-500">
                   <th className="py-3 px-4 font-bold">שם המאכל</th>
                   <th className="py-3 px-4 font-bold hidden sm:table-cell">קטגוריה</th>
-                  <th className="py-3 px-4 font-bold">כמות (גרם)</th>
+                  <th className="py-3 px-4 font-bold">כמות / יחידת ייחוס</th>
                   <th className="py-3 px-4 font-bold">קלוריות</th>
                   <th className="py-3 px-4 font-bold whitespace-nowrap">חלבון <span className="text-xs text-slate-400">(g)</span></th>
                   <th className="py-3 px-4 font-bold whitespace-nowrap">פחמימה <span className="text-xs text-slate-400">(g)</span></th>
@@ -137,7 +137,9 @@ export function FoodsManager() {
                           {FOOD_CATEGORY_LABELS[food.primary_category] || food.primary_category}
                         </span>
                       </td>
-                      <td className="py-3 px-4 font-mono">{food.serving_size || 100}</td>
+                      <td className="py-3 px-4 font-mono">
+                        {food.serving_size || 100} <span className="text-sm font-normal text-slate-500">{MEASUREMENT_UNIT_LABELS[food.measurement_unit] || 'גרם'}</span>
+                      </td>
                       <td className="py-3 px-4 font-mono font-bold text-emerald-600">{food.calories_per_100g}</td>
                       <td className="py-3 px-4 font-mono">{food.protein_per_100g}</td>
                       <td className="py-3 px-4 font-mono">{food.carbs_per_100g}</td>
@@ -207,6 +209,7 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
   const [formData, setFormData] = useState({
     name: '',
     primary_category: 'protein' as FoodCategory,
+    measurement_unit: 'g' as MeasurementUnit,
     serving_size: 100,
     calories_per_100g: 0,
     protein_per_100g: 0,
@@ -220,6 +223,7 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
         setFormData({
           name: food.name,
           primary_category: food.primary_category,
+          measurement_unit: food.measurement_unit || 'g',
           serving_size: food.serving_size || 100,
           calories_per_100g: food.calories_per_100g,
           protein_per_100g: food.protein_per_100g,
@@ -230,6 +234,7 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
         setFormData({
           name: '',
           primary_category: 'protein',
+          measurement_unit: 'g',
           serving_size: 100,
           calories_per_100g: 0,
           protein_per_100g: 0,
@@ -327,23 +332,38 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">כמות ייחוס (גרם)</label>
-              <input
-                type="number"
-                name="serving_size"
-                min="1"
-                required
-                value={formData.serving_size}
-                onChange={handleChange}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
-                dir="ltr"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">יחידת מידה</label>
+                <select
+                  name="measurement_unit"
+                  value={formData.measurement_unit}
+                  onChange={handleChange}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  {(Object.keys(MEASUREMENT_UNIT_LABELS) as MeasurementUnit[]).map(unit => (
+                    <option key={unit} value={unit}>{MEASUREMENT_UNIT_LABELS[unit]}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">כמות ייחוס</label>
+                <input
+                  type="number"
+                  name="serving_size"
+                  min="1"
+                  required
+                  value={formData.serving_size}
+                  onChange={handleChange}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                  dir="ltr"
+                />
+              </div>
             </div>
             
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mt-2">
               <h3 className="text-sm font-bold text-slate-700 mb-3 block text-center bg-emerald-50 text-emerald-700 py-1.5 rounded-lg border border-emerald-100">
-                ערכים תזונתיים ל-{formData.serving_size || 100} גרם
+                ערכים תזונתיים ל-{formData.serving_size || 100} {MEASUREMENT_UNIT_LABELS[formData.measurement_unit] || 'גרם'}
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>

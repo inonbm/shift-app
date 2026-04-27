@@ -8,7 +8,7 @@ import { useFoodStore } from '../../stores/foodStore';
 import { supabase } from '../../lib/supabase';
 import { ResetPasswordModal } from '../../components/ui/ResetPasswordModal';
 import { DeleteUserModal } from '../../components/ui/DeleteUserModal';
-import { GOAL_LABELS, ACTIVITY_LEVEL_LABELS, GENDER_LABELS } from '../../types';
+import { GOAL_LABELS, ACTIVITY_LEVEL_LABELS, GENDER_LABELS, MEASUREMENT_UNIT_LABELS } from '../../types';
 import type { Gender, ActivityLevel, Goal, TraineeData, MealFoodOption, Food } from '../../types';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from '../../lib/nutrition';
 
@@ -200,6 +200,7 @@ export function TraineeDetail() {
     return {
       food_id: food.id,
       food_name: food.name,
+      unit: food.measurement_unit || 'g',
       grams: Math.round(grams),
       protein_g: Math.round(food.protein_per_100g * factor * 10) / 10,
       carbs_g: Math.round(food.carbs_per_100g * factor * 10) / 10,
@@ -750,7 +751,9 @@ export function TraineeDetail() {
                             <ul className="text-xs text-slate-600 space-y-1.5 mb-2">
                               {items.map((opt) => (
                                 <li key={opt.food_id} className="flex items-center justify-between gap-1 bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100">
-                                  <span className="flex-1 truncate">• {opt.grams}g – {opt.food_name}</span>
+                                  <span className="flex-1 truncate">
+                                    • {opt.grams}{(!opt.unit || opt.unit === 'g') ? 'g' : ` ${MEASUREMENT_UNIT_LABELS[opt.unit]}`} – {opt.food_name}
+                                  </span>
                                   {isEditingMenu && (
                                     <button
                                       onClick={() => handleRemoveItem(meal.id, col.key, opt.food_id)}
@@ -801,20 +804,27 @@ export function TraineeDetail() {
                                   ))}
                                 </select>
                                 <div className="flex gap-1">
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    placeholder="גרם"
-                                    value={addForms[meal.id]?.[col.key]?.grams || ''}
-                                    onChange={e => setAddForms(prev => ({
-                                      ...prev,
-                                      [meal.id]: {
-                                        ...prev[meal.id],
-                                        [col.key]: { foodId: prev[meal.id]?.[col.key]?.foodId || '', grams: Number(e.target.value) },
-                                      },
-                                    }))}
-                                    className="flex-1 text-[11px] bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-amber-300 text-center"
-                                  />
+                                  {(() => {
+                                    const selectedFoodId = addForms[meal.id]?.[col.key]?.foodId;
+                                    const selectedFood = selectedFoodId ? foods.find(f => f.id === selectedFoodId) : null;
+                                    const unitLabel = selectedFood ? MEASUREMENT_UNIT_LABELS[selectedFood.measurement_unit] || 'גרם' : 'כמות';
+                                    return (
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        placeholder={unitLabel}
+                                        value={addForms[meal.id]?.[col.key]?.grams || ''}
+                                        onChange={e => setAddForms(prev => ({
+                                          ...prev,
+                                          [meal.id]: {
+                                            ...prev[meal.id],
+                                            [col.key]: { foodId: prev[meal.id]?.[col.key]?.foodId || '', grams: Number(e.target.value) },
+                                          },
+                                        }))}
+                                        className="flex-1 text-[11px] bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-amber-300 text-center"
+                                      />
+                                    );
+                                  })()}
                                   <button
                                     onClick={() => handleAddItem(meal.id, col.key)}
                                     disabled={!addForms[meal.id]?.[col.key]?.foodId}

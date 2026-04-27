@@ -19,6 +19,8 @@ export type Goal = 'cut' | 'bulk' | 'maintenance';
 
 export type FoodCategory = 'protein' | 'carb' | 'fat' | 'vegetable' | 'other';
 
+export type MeasurementUnit = 'g' | 'ml' | 'unit' | 'slice' | 'scoop' | 'cup' | 'tbsp' | 'tsp';
+
 // --- Database Row Types ---
 
 export interface Profile {
@@ -57,6 +59,7 @@ export interface Food {
   id: string;
   name: string;
   primary_category: FoodCategory;
+  measurement_unit: MeasurementUnit;
   serving_size: number;
   calories_per_100g: number;
   protein_per_100g: number;
@@ -70,6 +73,7 @@ export interface Food {
 export interface MealFoodOption {
   food_id: string;
   food_name: string;
+  unit?: MeasurementUnit;
   grams: number;
   protein_g: number;
   carbs_g: number;
@@ -223,4 +227,15 @@ export const FOOD_CATEGORY_LABELS: Record<FoodCategory, string> = {
   fat: 'שומן',
   vegetable: 'ירקות',
   other: 'אחר'
+};
+
+export const MEASUREMENT_UNIT_LABELS: Record<MeasurementUnit, string> = {
+  g: 'גרם',
+  ml: 'מ״ל',
+  unit: 'יחידה',
+  slice: 'פרוסה',
+  scoop: 'כף מדידה',
+  cup: 'כוס',
+  tbsp: 'כף',
+  tsp: 'כפית',
 };
