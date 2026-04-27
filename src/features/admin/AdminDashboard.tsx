@@ -6,6 +6,7 @@ import type { Profile, UserRole } from '../../types';
 import { ResetPasswordModal } from '../../components/ui/ResetPasswordModal';
 import { CreateUserModal } from '../../components/ui/CreateUserModal';
 import { EditProfileModal } from '../../components/ui/EditProfileModal';
+import { DeleteUserModal } from '../../components/ui/DeleteUserModal';
 
 export function AdminDashboard() {
   const navigate = useNavigate();
@@ -16,6 +17,8 @@ export function AdminDashboard() {
   const [resetModalUser, setResetModalUser] = useState<{ id: string, name: string } | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editModalUser, setEditModalUser] = useState<{ id: string, name: string, phone: string, role: UserRole } | null>(null);
+  const [userToDelete, setUserToDelete] = useState<{ id: string, name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -42,23 +45,26 @@ export function AdminDashboard() {
     u.full_name.includes(search) || u.email.includes(search)
   );
 
-  const handleDeleteUser = async (targetId: string, name: string) => {
-    const isConfirmed = window.confirm(
-      `האם אתה בטוח שברצונך למחוק את משתמש זה לצמיתות?\n\nשם: ${name}\nמזהה: ${targetId}\n\nפעולה זו תמחק גם את חשבון ההתחברות (Auth) והיא בלתי הפיכה!`
-    );
-    if (!isConfirmed) return;
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
 
     try {
       const { error } = await supabase.functions.invoke('admin-delete-user', {
-        body: { targetUserId: targetId }
+        body: { targetUserId: userToDelete.id }
       });
-      if (error) throw error;
+      if (error) {
+        console.error('Edge Function Error:', error);
+        throw error;
+      }
       
-      // Update UI
-      setUsers(users.filter(u => u.id !== targetId));
+      setUserToDelete(null);
+      await fetchUsers();
     } catch (err: any) {
       console.error('Failed to delete user:', err);
       alert(`שגיאה במחיקת המשתמש: ${err.message}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -169,7 +175,7 @@ export function AdminDashboard() {
                           אפס סיסמה
                         </button>
                         <button 
-                          onClick={() => handleDeleteUser(user.id, user.full_name)}
+                          onClick={() => setUserToDelete({ id: user.id, name: user.full_name })}
                           className="bg-red-100 text-red-700 hover:bg-red-200 flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors"
                         >
                           <Trash2 size={14} />
@@ -212,6 +218,12 @@ export function AdminDashboard() {
         currentPhone={editModalUser?.phone || ''}
         currentRole={editModalUser?.role || 'trainee'}
         onSuccess={fetchUsers}
+      />
+      <DeleteUserModal
+        isOpen={!!userToDelete}
+        onClose={() => setUserToDelete(null)}
+        onConfirm={confirmDeleteUser}
+        isDeleting={isDeleting}
       />
     </div>
   );

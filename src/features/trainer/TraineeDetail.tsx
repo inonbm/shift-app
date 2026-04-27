@@ -7,6 +7,7 @@ import { useWorkoutStore } from '../../stores/workoutStore';
 import { useFoodStore } from '../../stores/foodStore';
 import { supabase } from '../../lib/supabase';
 import { ResetPasswordModal } from '../../components/ui/ResetPasswordModal';
+import { DeleteUserModal } from '../../components/ui/DeleteUserModal';
 import { GOAL_LABELS, ACTIVITY_LEVEL_LABELS, GENDER_LABELS } from '../../types';
 import type { Gender, ActivityLevel, Goal, TraineeData, MealFoodOption, Food } from '../../types';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from '../../lib/nutrition';
@@ -26,6 +27,8 @@ export function TraineeDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<TraineeData>>({});
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // --- Manual nutrition target override state ---
   const [isEditingTargets, setIsEditingTargets] = useState(false);
@@ -127,24 +130,27 @@ export function TraineeDetail() {
     }
   };
 
-  const handleDelete = async () => {
+  const confirmDeleteUser = async () => {
     if (!id) return;
-    const isConfirmed = window.confirm(
-      'האם אתה בטוח שברצונך למחוק מתאמן זה? פעולה זו תמחק גם את כל נתוני התזונה, היסטוריית האימונים, והפרופיל שלו לצמיתות.'
-    );
-    if (isConfirmed) {
-      try {
-        const { error: deleteError } = await supabase.functions.invoke('admin-delete-user', { 
-          body: { targetUserId: id } 
-        });
-        
-        if (deleteError) throw deleteError;
-        
-        // Remove locally from state if needed by calling a clear or just navigating away
-        navigate('/trainer');
-      } catch (err) {
-        console.error('Failed to delete', err);
+    setIsDeleting(true);
+
+    try {
+      const { error: deleteError } = await supabase.functions.invoke('admin-delete-user', { 
+        body: { targetUserId: id } 
+      });
+      
+      if (deleteError) {
+        console.error('Edge Function Error:', deleteError);
+        throw deleteError;
       }
+      
+      setIsDeleteModalOpen(false);
+      navigate('/trainer');
+    } catch (err: any) {
+      console.error('Failed to delete user:', err);
+      alert(`שגיאה במחיקת המשתמש: ${err.message}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -346,8 +352,8 @@ export function TraineeDetail() {
               <Edit2 size={16} /> ערוך
             </button>
             <button 
-              onClick={handleDelete}
-              disabled={isTraineeLoading}
+              onClick={() => setIsDeleteModalOpen(true)}
+              disabled={isTraineeLoading || isDeleting}
               className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
               title="מחק מתאמן"
             >
@@ -951,6 +957,13 @@ export function TraineeDetail() {
         onClose={() => setIsPasswordModalOpen(false)}
         targetUserId={currentTrainee.id}
         targetUserName={currentTrainee.full_name}
+      />
+
+      <DeleteUserModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDeleteUser}
+        isDeleting={isDeleting}
       />
 
     </div>
