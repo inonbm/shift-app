@@ -140,6 +140,15 @@ export interface WorkoutSessionWithSets extends WorkoutSession {
   sets: SessionSet[];
 }
 
+export interface DailyTracking {
+  id: string;
+  trainee_id: string;
+  date: string;
+  completed_meals: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 // --- Form / Input Types ---
 
 export interface CreateTraineeInput {

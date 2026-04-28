@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Flame, Dumbbell, Droplet, Activity, ChevronDown, ChevronUp, Coffee, Loader2, Sparkles } from 'lucide-react';
+import { Flame, Dumbbell, Droplet, Activity, ChevronDown, ChevronUp, Coffee, Loader2, Sparkles, CheckCircle2, Circle } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { useDietStore } from '../../stores/dietStore';
+import { useTrackingStore } from '../../stores/trackingStore';
 import type { MealFoodOption } from '../../types';
 import { MEASUREMENT_UNIT_LABELS } from '../../types';
 import { RecipeModal } from './RecipeModal';
@@ -19,9 +20,16 @@ export function DietView() {
   const { user } = useAuthStore();
   const { fetchMyData, currentTrainee, isLoading: isTraineeLoading } = useTraineeStore();
   const { fetchDiet, meals, isLoading: isDietLoading } = useDietStore();
+  const { todaysTracking, fetchTodaysTracking, toggleMealCompletion } = useTrackingStore();
 
   const [expandedMeals, setExpandedMeals] = useState<Record<string, boolean>>({});
   const [selections, setSelections] = useState<Record<string, MealSelection>>({});
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchTodaysTracking(user.id);
+    }
+  }, [user?.id, fetchTodaysTracking]);
   
   // AI Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -219,29 +227,47 @@ export function DietView() {
           const isExpanded = expandedMeals[meal.id] ?? false; 
           const mealSelection = selections[meal.id];
           const hasSelectedAllThree = Boolean(mealSelection?.carb && mealSelection?.protein && mealSelection?.fat);
+          const isCompleted = todaysTracking?.completed_meals.includes(meal.id) || false;
           
           return (
             <div key={meal.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden transition-all duration-300">
               
               {/* Accordion Header */}
-              <button 
+              <div 
                 onClick={() => toggleMeal(meal.id)}
-                className="w-full flex items-center justify-between p-5 focus:outline-none hover:bg-slate-50 transition-colors text-right relative"
+                className={`w-full flex items-center justify-between p-5 focus:outline-none hover:bg-slate-50 transition-colors text-right relative cursor-pointer ${isCompleted ? 'opacity-80 bg-emerald-50/40' : ''}`}
               >
-                <div className="absolute right-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-purple-500 to-emerald-400" />
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800 pr-2">{meal.meal_name}</h3>
-                  <div className="flex gap-4 mt-1 pr-2 text-sm font-medium text-slate-500">
-                    <span className="text-purple-600">~{meal.target_calories} קק״ל</span>
-                    <span>{meal.target_protein}g חלבון</span>
-                    <span>{meal.target_carbs}g פחמימה</span>
-                    <span>{meal.target_fat}g שומן</span>
+                <div className={`absolute right-0 top-0 bottom-0 w-1.5 ${isCompleted ? 'bg-emerald-500' : 'bg-gradient-to-b from-purple-500 to-emerald-400'}`} />
+                <div className="flex items-center gap-4 pr-2 flex-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (user?.id) toggleMealCompletion(user.id, meal.id);
+                    }}
+                    className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${
+                      isCompleted 
+                        ? 'text-emerald-500 hover:text-emerald-600 bg-emerald-100 hover:bg-emerald-200' 
+                        : 'text-slate-300 hover:text-emerald-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    {isCompleted ? <CheckCircle2 size={26} className="fill-emerald-100" /> : <Circle size={26} strokeWidth={2.5} />}
+                  </button>
+                  <div>
+                    <h3 className={`text-lg font-bold transition-colors ${isCompleted ? 'text-emerald-800 line-through decoration-emerald-300 decoration-2' : 'text-slate-800'}`}>
+                      {meal.meal_name}
+                    </h3>
+                    <div className="flex gap-4 mt-1 text-sm font-medium text-slate-500">
+                      <span className="text-purple-600">~{meal.target_calories} קק״ל</span>
+                      <span>{meal.target_protein}g חלבון</span>
+                      <span>{meal.target_carbs}g פחמימה</span>
+                      <span>{meal.target_fat}g שומן</span>
+                    </div>
                   </div>
                 </div>
-                <div className="text-slate-300 bg-slate-50 p-2 border border-slate-100 rounded-full">
+                <div className="text-slate-300 bg-slate-50 p-2 border border-slate-100 rounded-full flex-shrink-0 ml-1">
                   {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                 </div>
-              </button>
+              </div>
 
               {/* Accordion Body */}
               {isExpanded && (
