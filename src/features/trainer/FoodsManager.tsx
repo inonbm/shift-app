@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import Papa from 'papaparse';
 
-import { Search, Loader2, AlertCircle, Edit2, Trash2, Plus, Apple, Save, X } from 'lucide-react';
+import { Search, Loader2, AlertCircle, Edit2, Trash2, Plus, Apple, Save, X, Upload } from 'lucide-react';
 import { useFoodStore } from '../../stores/foodStore';
 import { useAuthStore } from '../../stores/authStore';
 import { FOOD_CATEGORY_LABELS, MEASUREMENT_UNIT_LABELS } from '../../types';
@@ -8,11 +9,68 @@ import type { Food, FoodCategory, MeasurementUnit } from '../../types';
 
 export function FoodsManager() {
   const { profile } = useAuthStore();
-  const { foods, isLoading, error, fetchFoods, deleteFood } = useFoodStore();
+  const { foods, isLoading, error, fetchFoods, deleteFood, createFoodsBulk } = useFoodStore();
   const [search, setSearch] = useState('');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingFood, setEditingFood] = useState<Food | null>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        try {
+          const mappedFoods = results.data.map((row: any) => {
+            const name = row['שם המוצר']?.trim() || 'ללא שם';
+            const calories = Number(row['קלוריות']) || 0;
+            const protein = Number(row['חלבון']) || 0;
+            const carbs = Number(row['פחמימה']) || Number(row['פחמימות']) || 0;
+            const fats = Number(row['שומן']) || 0;
+            
+            let primary_category: FoodCategory = 'other';
+            const cat = row['קטגוריה']?.trim();
+            if (cat === 'חלבון') primary_category = 'protein';
+            else if (cat === 'פחמימה' || cat === 'פחמימות') primary_category = 'carb';
+            else if (cat === 'שומן') primary_category = 'fat';
+            else if (cat === 'ירקות' || cat === 'ירק') primary_category = 'vegetable';
+
+            return {
+              name,
+              primary_category,
+              measurement_unit: 'g' as MeasurementUnit,
+              serving_size: 100,
+              calories_per_100g: calories,
+              protein_per_100g: protein,
+              carbs_per_100g: carbs,
+              fats_per_100g: fats,
+            };
+          });
+
+          await createFoodsBulk(mappedFoods);
+          alert(`יובאו בהצלחה ${mappedFoods.length} מאכלים.`);
+        } catch (err: any) {
+          alert(err.message || 'שגיאה במהלך ייבוא הנתונים');
+        } finally {
+          setIsImporting(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+      },
+      error: (error: any) => {
+        alert(`שגיאה בקריאת הקובץ: ${error.message}`);
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    });
+  };
 
   useEffect(() => {
     fetchFoods();
@@ -68,13 +126,30 @@ export function FoodsManager() {
             <p className="text-slate-500">הוספה, עריכה ומחיקה של ערכים תזונתיים.</p>
           </div>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"
-        >
-          <Plus size={18} />
-          הוסף מאכל חדש
-        </button>
+        <div className="flex items-center gap-3">
+          <input
+            type="file"
+            accept=".csv"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"
+          >
+            {isImporting ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+            ייבוא מ-CSV
+          </button>
+          <button
+            onClick={openCreateModal}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"
+          >
+            <Plus size={18} />
+            הוסף מאכל חדש
+          </button>
+        </div>
       </div>
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">

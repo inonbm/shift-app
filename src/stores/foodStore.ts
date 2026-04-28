@@ -9,6 +9,7 @@ interface FoodState {
   
   fetchFoods: () => Promise<void>;
   createFood: (food: Omit<Food, 'id' | 'created_at' | 'created_by'>) => Promise<void>;
+  createFoodsBulk: (foods: Omit<Food, 'id' | 'created_at' | 'created_by'>[]) => Promise<void>;
   updateFood: (id: string, updates: Partial<Food>) => Promise<void>;
   deleteFood: (id: string, createdBy: string, currentUserId: string, currentUserRole: string) => Promise<void>;
   clearError: () => void;
@@ -60,6 +61,37 @@ export const useFoodStore = create<FoodState>((set, get) => ({
     } catch (error: any) {
       console.error('Failed to create food:', error);
       set({ isLoading: false, error: error.message || 'שגיאה ביצירת מאכל' });
+      throw error;
+    }
+  },
+
+  createFoodsBulk: async (foodsToInsert) => {
+    try {
+      set({ isLoading: true, error: null });
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated');
+
+      const mappedFoods = foodsToInsert.map(food => ({
+        name: food.name,
+        primary_category: food.primary_category,
+        measurement_unit: food.measurement_unit,
+        serving_size: food.serving_size,
+        calories_per_100g: food.calories_per_100g,
+        protein_per_100g: food.protein_per_100g,
+        carbs_per_100g: food.carbs_per_100g,
+        fats_per_100g: food.fats_per_100g,
+        created_by: userData.user!.id
+      }));
+
+      const { error } = await supabase
+        .from('foods')
+        .insert(mappedFoods);
+
+      if (error) throw error;
+      await get().fetchFoods();
+    } catch (error: any) {
+      console.error('Failed to create foods in bulk:', error);
+      set({ isLoading: false, error: error.message || 'שגיאה בייבוא מאכלים' });
       throw error;
     }
   },
