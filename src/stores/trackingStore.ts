@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import type { DailyTracking } from '../types';
+import type { DailyTracking, FreeEntry } from '../types';
 
 interface TrackingState {
   todaysTracking: DailyTracking | null;
@@ -9,6 +9,8 @@ interface TrackingState {
   
   fetchTodaysTracking: (traineeId: string) => Promise<void>;
   toggleMealCompletion: (traineeId: string, mealId: string) => Promise<void>;
+  addFreeEntry: (traineeId: string, entry: Omit<FreeEntry, 'id'>) => Promise<void>;
+  removeFreeEntry: (traineeId: string, entryId: string) => Promise<void>;
 }
 
 export const useTrackingStore = create<TrackingState>((set, get) => ({
@@ -64,7 +66,8 @@ export const useTrackingStore = create<TrackingState>((set, get) => ({
         .upsert({
           trainee_id: traineeId,
           date: today,
-          completed_meals: newMeals
+          completed_meals: newMeals,
+          free_entries: currentTracking ? currentTracking.free_entries : []
         }, { onConflict: 'trainee_id,date' })
         .select()
         .single();
@@ -74,6 +77,73 @@ export const useTrackingStore = create<TrackingState>((set, get) => ({
       set({ todaysTracking: data, isLoading: false });
     } catch (error: any) {
       console.error('Failed to toggle meal:', error);
+      set({ isLoading: false, error: error.message });
+    }
+  },
+
+  addFreeEntry: async (traineeId: string, entry: Omit<FreeEntry, 'id'>) => {
+    try {
+      set({ isLoading: true, error: null });
+      
+      const today = new Date().toISOString().split('T')[0];
+      const currentTracking = get().todaysTracking;
+      
+      const newEntry: FreeEntry = {
+        ...entry,
+        id: crypto.randomUUID()
+      };
+      
+      const newFreeEntries = currentTracking 
+        ? [...currentTracking.free_entries, newEntry]
+        : [newEntry];
+        
+      const completedMeals = currentTracking ? currentTracking.completed_meals : [];
+      
+      const { data, error } = await supabase
+        .from('daily_tracking')
+        .upsert({
+          trainee_id: traineeId,
+          date: today,
+          completed_meals: completedMeals,
+          free_entries: newFreeEntries
+        }, { onConflict: 'trainee_id,date' })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      set({ todaysTracking: data, isLoading: false });
+    } catch (error: any) {
+      console.error('Failed to add free entry:', error);
+      set({ isLoading: false, error: error.message });
+    }
+  },
+
+  removeFreeEntry: async (traineeId: string, entryId: string) => {
+    try {
+      set({ isLoading: true, error: null });
+      
+      const today = new Date().toISOString().split('T')[0];
+      const currentTracking = get().todaysTracking;
+      
+      if (!currentTracking) return;
+      
+      const newFreeEntries = currentTracking.free_entries.filter(e => e.id !== entryId);
+      
+      const { data, error } = await supabase
+        .from('daily_tracking')
+        .upsert({
+          trainee_id: traineeId,
+          date: today,
+          completed_meals: currentTracking.completed_meals,
+          free_entries: newFreeEntries
+        }, { onConflict: 'trainee_id,date' })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      set({ todaysTracking: data, isLoading: false });
+    } catch (error: any) {
+      console.error('Failed to remove free entry:', error);
       set({ isLoading: false, error: error.message });
     }
   }

@@ -140,11 +140,21 @@ export interface WorkoutSessionWithSets extends WorkoutSession {
   sets: SessionSet[];
 }
 
+export interface FreeEntry {
+  id: string;
+  name: string;
+  calories: number;
+  protein?: number;
+  carbs?: number;
+  fats?: number;
+}
+
 export interface DailyTracking {
   id: string;
   trainee_id: string;
   date: string;
   completed_meals: string[];
+  free_entries: FreeEntry[];
   created_at: string;
   updated_at: string;
 }

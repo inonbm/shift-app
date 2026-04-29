@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Flame, Dumbbell, Droplet, Activity, ChevronDown, ChevronUp, Coffee, Loader2, Sparkles, CheckCircle2, Circle } from 'lucide-react';
+import { Flame, Dumbbell, Droplet, Activity, ChevronDown, ChevronUp, Coffee, Loader2, Sparkles, CheckCircle2, Circle, Plus, Trash2, X } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { useDietStore } from '../../stores/dietStore';
@@ -20,10 +20,14 @@ export function DietView() {
   const { user } = useAuthStore();
   const { fetchMyData, currentTrainee, isLoading: isTraineeLoading } = useTraineeStore();
   const { fetchDiet, meals, isLoading: isDietLoading } = useDietStore();
-  const { todaysTracking, fetchTodaysTracking, toggleMealCompletion } = useTrackingStore();
+  const { todaysTracking, fetchTodaysTracking, toggleMealCompletion, addFreeEntry, removeFreeEntry } = useTrackingStore();
 
   const [expandedMeals, setExpandedMeals] = useState<Record<string, boolean>>({});
   const [selections, setSelections] = useState<Record<string, MealSelection>>({});
+  
+  // Free Entry State
+  const [isFreeEntryModalOpen, setIsFreeEntryModalOpen] = useState(false);
+  const [freeEntryForm, setFreeEntryForm] = useState({ name: '', calories: '', protein: '', carbs: '', fats: '' });
 
   useEffect(() => {
     if (user?.id) {
@@ -102,6 +106,35 @@ export function DietView() {
 
   const data = currentTrainee?.trainee_data;
 
+  // Calculations for Progress Bar
+  const targetCalories = data?.goal_calories || 0;
+  const consumedFromMeals = meals.reduce((sum, meal) => {
+    if (todaysTracking?.completed_meals.includes(meal.id)) {
+      return sum + meal.target_calories;
+    }
+    return sum;
+  }, 0);
+  const consumedFromFree = todaysTracking?.free_entries?.reduce((sum, entry) => sum + entry.calories, 0) || 0;
+  const totalConsumed = consumedFromMeals + consumedFromFree;
+  const progressPercentage = targetCalories > 0 ? Math.min(100, Math.round((totalConsumed / targetCalories) * 100)) : 0;
+  const isOverTarget = totalConsumed > targetCalories;
+  
+  const handleAddFreeEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.id || !freeEntryForm.name || !freeEntryForm.calories) return;
+    
+    await addFreeEntry(user.id, {
+      name: freeEntryForm.name,
+      calories: Number(freeEntryForm.calories),
+      protein: freeEntryForm.protein ? Number(freeEntryForm.protein) : undefined,
+      carbs: freeEntryForm.carbs ? Number(freeEntryForm.carbs) : undefined,
+      fats: freeEntryForm.fats ? Number(freeEntryForm.fats) : undefined,
+    });
+    
+    setIsFreeEntryModalOpen(false);
+    setFreeEntryForm({ name: '', calories: '', protein: '', carbs: '', fats: '' });
+  };
+
   // Empty state if no generated meals
   if (!meals || meals.length === 0) {
     return (
@@ -174,6 +207,25 @@ export function DietView() {
   return (
     <div className="space-y-6 pb-12">
       
+      {/* Daily Progress Bar */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 sticky top-4 z-10">
+        <div className="flex justify-between items-end mb-2">
+          <div>
+            <h3 className="font-bold text-slate-800">התקדמות יומית</h3>
+            <p className="text-sm text-slate-500">סה״כ להיום: {Math.round(totalConsumed)} / {Math.round(targetCalories)} קלוריות</p>
+          </div>
+          <div className={`font-extrabold text-xl ${isOverTarget ? 'text-red-500' : 'text-emerald-600'}`}>
+            {progressPercentage}%
+          </div>
+        </div>
+        <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+          <div 
+            className={`h-full rounded-full transition-all duration-500 ease-out ${isOverTarget ? 'bg-red-500' : 'bg-emerald-500'}`}
+            style={{ width: `${Math.min(100, progressPercentage)}%` }}
+          />
+        </div>
+      </div>
+
       {/* Top Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
@@ -323,6 +375,132 @@ export function DietView() {
           );
         })}
       </div>
+
+      {/* Free Entries Section */}
+      <div className="mt-8">
+        <div className="flex justify-between items-center mb-4 px-1">
+          <h3 className="text-xl font-bold text-slate-800">הזנה חופשית</h3>
+          <button
+            onClick={() => setIsFreeEntryModalOpen(true)}
+            className="flex items-center gap-1.5 text-sm font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <Plus size={16} />
+            הוסף חריגה
+          </button>
+        </div>
+        
+        {todaysTracking?.free_entries && todaysTracking.free_entries.length > 0 ? (
+          <div className="space-y-3">
+            {todaysTracking.free_entries.map((entry) => (
+              <div key={entry.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                <div>
+                  <h4 className="font-bold text-slate-800">{entry.name}</h4>
+                  <div className="flex gap-3 text-xs text-slate-500 mt-1">
+                    <span className="font-medium text-slate-700">{entry.calories} קק״ל</span>
+                    {entry.protein ? <span>{entry.protein}g חלבון</span> : null}
+                    {entry.carbs ? <span>{entry.carbs}g פחמימה</span> : null}
+                    {entry.fats ? <span>{entry.fats}g שומן</span> : null}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (user?.id) removeFreeEntry(user.id, entry.id);
+                  }}
+                  className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-slate-50 border border-slate-100 border-dashed rounded-xl p-6 text-center text-slate-500">
+            לא הוזנו חריגות או פריטים חופשיים היום.
+          </div>
+        )}
+      </div>
+      
+      {/* Free Entry Modal */}
+      {isFreeEntryModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-bold text-lg text-slate-800">הוספת פריט חופשי</h3>
+              <button onClick={() => setIsFreeEntryModalOpen(false)} className="text-slate-400 hover:text-slate-600 bg-white rounded-full p-1 shadow-sm">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleAddFreeEntry} className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">שם הפריט / ארוחה *</label>
+                <input
+                  required
+                  type="text"
+                  value={freeEntryForm.name}
+                  onChange={e => setFreeEntryForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-slate-800"
+                  placeholder="למשל: משולש פיצה, חטיף שוקולד..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">קלוריות (סה״כ) *</label>
+                <input
+                  required
+                  type="number"
+                  min="0"
+                  value={freeEntryForm.calories}
+                  onChange={e => setFreeEntryForm(prev => ({ ...prev, calories: e.target.value }))}
+                  className="w-full border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 text-slate-800"
+                  placeholder="0"
+                />
+              </div>
+              
+              <div className="grid grid-cols-3 gap-3 pt-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1 text-center">חלבון (גרם)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={freeEntryForm.protein}
+                    onChange={e => setFreeEntryForm(prev => ({ ...prev, protein: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-xl p-2 text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1 text-center">פחמימה (גרם)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={freeEntryForm.carbs}
+                    onChange={e => setFreeEntryForm(prev => ({ ...prev, carbs: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-xl p-2 text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1 text-center">שומן (גרם)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={freeEntryForm.fats}
+                    onChange={e => setFreeEntryForm(prev => ({ ...prev, fats: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-xl p-2 text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50"
+                  />
+                </div>
+              </div>
+              
+              <button
+                type="submit"
+                disabled={!freeEntryForm.name || !freeEntryForm.calories}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                הוסף ושמור
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* AI Recipe Modal */}
       <RecipeModal
