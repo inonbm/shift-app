@@ -37,11 +37,24 @@ function resolveOptions(
     
     // e.g. T_carb = 50g. Oats have 66g carbs per serving (e.g., 100g).
     // Grams needed = 50 / (0.66) = ~75.7g of Oats
-    const gramsNeeded = Math.round(targetGrams / (macroPer100 / referenceWeight));
+    let rawGrams = targetGrams / (macroPer100 / referenceWeight);
     
     // Safety check in case of anomalous math
-    if (gramsNeeded > 2000) continue; // prevents suggesting 2kg of spinach for carbs
+    if (rawGrams > 2000) continue; // prevents suggesting 2kg of spinach for carbs
 
+    // Apply Rounding Logic
+    let gramsNeeded = rawGrams;
+    if (rawGrams < 20) {
+      gramsNeeded = Math.round(rawGrams);
+    } else if (food.primary_category === 'fat') {
+      gramsNeeded = Math.round(rawGrams / 5) * 5;
+    } else {
+      gramsNeeded = Math.round(rawGrams / 10) * 10;
+    }
+
+    if (gramsNeeded <= 0) continue;
+
+    // Recalculate macros based on the rounded grams
     const protein = (food.protein_per_100g / referenceWeight) * gramsNeeded;
     const carbs = (food.carbs_per_100g / referenceWeight) * gramsNeeded;
     const fat = (food.fats_per_100g / referenceWeight) * gramsNeeded;
@@ -54,7 +67,8 @@ function resolveOptions(
       protein_g: Math.round(protein * 10) / 10,
       carbs_g: Math.round(carbs * 10) / 10,
       fat_g: Math.round(fat * 10) / 10,
-      calories: Math.round(kcal)
+      calories: Math.round(kcal),
+      unit: food.measurement_unit
     });
   }
 
@@ -66,7 +80,7 @@ function resolveOptions(
  */
 export function generateDietPlan(
   traineeId: string,
-  dailyCalories: number,
+  _dailyCalories: number,
   dailyProtein: number,
   dailyCarbs: number,
   dailyFat: number,
@@ -86,7 +100,6 @@ export function generateDietPlan(
     const T_c = dailyCarbs * p;
     const T_p = dailyProtein * p;
     const T_f = dailyFat * p;
-    const T_kcal = dailyCalories * p;
 
     // Pick exactly 4 random foods per category for this meal
     const selectedCarbFoods = selectRandomUnique(carbFoods, 4);
@@ -118,6 +131,29 @@ export function generateDietPlan(
     const R_f = clamp(T_f - avgCarbFat - avgProteinFat); // Remaining fat after carbs & protein
     const fatOptions = resolveOptions(selectedFatFoods, R_f, 'fats_per_100g');
 
+    // ----------------------------------------------------
+    // STEP 4: RECALCULATE MEAL TARGETS
+    // ----------------------------------------------------
+    const avgP = 
+      (proteinOptions.reduce((acc, o) => acc + o.protein_g, 0) / (proteinOptions.length || 1)) +
+      (carbOptions.reduce((acc, o) => acc + o.protein_g, 0) / (carbOptions.length || 1)) +
+      (fatOptions.reduce((acc, o) => acc + o.protein_g, 0) / (fatOptions.length || 1));
+
+    const avgC = 
+      (proteinOptions.reduce((acc, o) => acc + o.carbs_g, 0) / (proteinOptions.length || 1)) +
+      (carbOptions.reduce((acc, o) => acc + o.carbs_g, 0) / (carbOptions.length || 1)) +
+      (fatOptions.reduce((acc, o) => acc + o.carbs_g, 0) / (fatOptions.length || 1));
+
+    const avgF = 
+      (proteinOptions.reduce((acc, o) => acc + o.fat_g, 0) / (proteinOptions.length || 1)) +
+      (carbOptions.reduce((acc, o) => acc + o.fat_g, 0) / (carbOptions.length || 1)) +
+      (fatOptions.reduce((acc, o) => acc + o.fat_g, 0) / (fatOptions.length || 1));
+
+    const avgKcal = 
+      (proteinOptions.reduce((acc, o) => acc + o.calories, 0) / (proteinOptions.length || 1)) +
+      (carbOptions.reduce((acc, o) => acc + o.calories, 0) / (carbOptions.length || 1)) +
+      (fatOptions.reduce((acc, o) => acc + o.calories, 0) / (fatOptions.length || 1));
+
     meals.push({
       id: crypto.randomUUID(), // Temp ID until DB insertion
       trainee_id: traineeId,
@@ -126,10 +162,10 @@ export function generateDietPlan(
       protein_options: proteinOptions,
       carb_options: carbOptions,
       fat_options: fatOptions,
-      target_calories: Math.round(T_kcal),
-      target_protein: Math.round(T_p),
-      target_carbs: Math.round(T_c),
-      target_fat: Math.round(T_f),
+      target_calories: Math.round(avgKcal),
+      target_protein: Math.round(avgP),
+      target_carbs: Math.round(avgC),
+      target_fat: Math.round(avgF),
       generated_at: new Date().toISOString()
     });
   }
