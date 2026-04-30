@@ -119,10 +119,10 @@ export function DietView() {
   const progressPercentage = targetCalories > 0 ? Math.min(100, Math.round((totalConsumed / targetCalories) * 100)) : 0;
   const isOverTarget = totalConsumed > targetCalories;
   
-  // Macros
-  const targetProtein = meals.reduce((sum, meal) => sum + meal.target_protein, 0);
-  const targetCarbs = meals.reduce((sum, meal) => sum + meal.target_carbs, 0);
-  const targetFat = meals.reduce((sum, meal) => sum + meal.target_fat, 0);
+  // Macros — use profile targets (same source as summary cards) to ensure a single source of truth
+  const targetProtein = data?.protein_grams || 0;
+  const targetCarbs = data?.carbs_grams || 0;
+  const targetFat = data?.fat_grams || 0;
 
   const consumedProtein = meals.reduce((sum, meal) => todaysTracking?.completed_meals.includes(meal.id) ? sum + meal.target_protein : sum, 0) 
     + (todaysTracking?.free_entries?.reduce((sum, entry) => sum + (entry.protein || 0), 0) || 0);
