@@ -43,7 +43,8 @@ export function TraineeForm() {
     weight_kg: 70,
     height_cm: 175,
     activity_level: 'moderate',
-    goal: 'maintenance'
+    goal: 'maintenance',
+    is_busy_lifestyle: false
   });
 
   // Calculate live nutrition values based on form state
@@ -64,6 +65,12 @@ export function TraineeForm() {
       ...prev,
       [name]: type === 'number' ? Number(value) : value
     }));
+  };
+
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    clearError();
+    setFormData(prev => ({ ...prev, [name]: checked }));
   };
 
   const handleNextStep = () => {
@@ -335,6 +342,21 @@ export function TraineeForm() {
                 </div>
               </div>
             </div>
+
+            {/* Busy Lifestyle Toggle */}
+            <label className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl cursor-pointer hover:bg-amber-100 transition-colors">
+              <input
+                type="checkbox"
+                name="is_busy_lifestyle"
+                checked={formData.is_busy_lifestyle || false}
+                onChange={handleCheckboxChange}
+                className="mt-0.5 w-5 h-5 rounded accent-amber-500 flex-shrink-0 cursor-pointer"
+              />
+              <div>
+                <p className="font-bold text-amber-800 text-sm">מתאמן עסוק / סטודנט ⏱️</p>
+                <p className="text-xs text-amber-600 mt-0.5">(המערכת תעדיף לשבץ מאכלים מהירים וללא בישול כמו כריכים, מעדנים, פריכיות וכו')</p>
+              </div>
+            </label>
 
             {/* Action Buttons */}
             <div className="flex gap-3">

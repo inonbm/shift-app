@@ -103,6 +103,7 @@ export function TraineeDetail() {
         height_cm: data.height_cm,
         activity_level: data.activity_level,
         goal: data.goal,
+        is_busy_lifestyle: data.is_busy_lifestyle ?? false,
       });
       setIsEditing(true);
     }
@@ -118,6 +119,11 @@ export function TraineeDetail() {
       ...prev,
       [name]: type === 'number' ? Number(value) : value
     }));
+  };
+
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    setEditForm(prev => ({ ...prev, [name]: checked }));
   };
 
   const handleSave = async () => {
@@ -487,6 +493,21 @@ export function TraineeDetail() {
                       </select>
                     </div>
                   </div>
+
+                  {/* Busy Lifestyle toggle */}
+                  <label className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl cursor-pointer hover:bg-amber-100 transition-colors">
+                    <input
+                      type="checkbox"
+                      name="is_busy_lifestyle"
+                      checked={(editForm as any).is_busy_lifestyle ?? false}
+                      onChange={handleCheckboxChange}
+                      className="mt-0.5 w-4 h-4 rounded accent-amber-500 flex-shrink-0 cursor-pointer"
+                    />
+                    <div>
+                      <p className="font-bold text-amber-800 text-xs">מתאמן עסוק / סטודנט ⏱️</p>
+                      <p className="text-xs text-amber-600 mt-0.5">מעדיף מאכלים מהירים וללא בישול בעת יצירת תפריט</p>
+                    </div>
+                  </label>
 
                   <div className="flex gap-2 pt-2 border-t border-slate-100">
                     <button 

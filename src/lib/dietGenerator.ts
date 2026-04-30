@@ -84,14 +84,33 @@ export function generateDietPlan(
   dailyProtein: number,
   dailyCarbs: number,
   dailyFat: number,
-  availableFoods: Food[]
+  availableFoods: Food[],
+  isBusyLifestyle: boolean = false
 ): GeneratedMeal[] {
   const meals: GeneratedMeal[] = [];
 
-  // Group foods
-  const carbFoods = availableFoods.filter(f => f.primary_category === 'carb');
-  const proteinFoods = availableFoods.filter(f => f.primary_category === 'protein');
-  const fatFoods = availableFoods.filter(f => f.primary_category === 'fat');
+  // Group foods — for busy lifestyles, surface quick no-cook foods first via stable sort.
+  const QUICK_KEYWORDS = [
+    'יוגורט', 'גבינה', 'קוטג', 'טונה', 'סרדין', 'ביצה', 'לחם', 'פיתה', 'קרקר', 'פריכי',
+    'אגוז', 'שקד', 'בוטן', 'פיסטוק', 'גרנולה', 'חלב', 'שיבולת', 'קוואקר',
+    'בננה', 'תפוח', 'גזר', 'עגבני', 'מלפפון', 'חומוס', 'אבוקדו',
+    'tuna', 'cottage', 'yogurt', 'bread', 'nut', 'almond', 'oat'
+  ];
+
+  const sortFoodsByLifestyle = (foods: Food[]) => {
+    if (!isBusyLifestyle) return foods;
+    return [...foods].sort((a, b) => {
+      const aMatch = QUICK_KEYWORDS.some(kw => a.name.toLowerCase().includes(kw.toLowerCase()));
+      const bMatch = QUICK_KEYWORDS.some(kw => b.name.toLowerCase().includes(kw.toLowerCase()));
+      if (aMatch && !bMatch) return -1;
+      if (!aMatch && bMatch) return 1;
+      return 0;
+    });
+  };
+
+  const carbFoods = sortFoodsByLifestyle(availableFoods.filter(f => f.primary_category === 'carb'));
+  const proteinFoods = sortFoodsByLifestyle(availableFoods.filter(f => f.primary_category === 'protein'));
+  const fatFoods = sortFoodsByLifestyle(availableFoods.filter(f => f.primary_category === 'fat'));
 
   for (const distribution of MEAL_DISTRIBUTION) {
     const p = distribution.percentage;

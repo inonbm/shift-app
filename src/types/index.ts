@@ -47,6 +47,7 @@ export interface TraineeData {
   protein_grams: number;
   carbs_grams: number;
   fat_grams: number;
+  is_busy_lifestyle: boolean;
   updated_at: string;
 }
 
@@ -172,6 +173,7 @@ export interface CreateTraineeInput {
   height_cm: number;
   activity_level: ActivityLevel;
   goal: Goal;
+  is_busy_lifestyle?: boolean;
 }
 
 export interface CreateFoodInput {

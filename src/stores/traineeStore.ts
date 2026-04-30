@@ -220,6 +220,7 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
         height_cm: input.height_cm,
         activity_level: input.activity_level,
         goal: input.goal,
+        is_busy_lifestyle: input.is_busy_lifestyle ?? false,
         bmr: bmr,
         tdee: tdee,
         goal_calories: goalCalories,
