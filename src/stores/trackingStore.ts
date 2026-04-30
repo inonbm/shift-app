@@ -11,6 +11,7 @@ interface TrackingState {
   toggleMealCompletion: (traineeId: string, mealId: string) => Promise<void>;
   addFreeEntry: (traineeId: string, entry: Omit<FreeEntry, 'id'>) => Promise<void>;
   removeFreeEntry: (traineeId: string, entryId: string) => Promise<void>;
+  fetchTrackingForDate: (traineeId: string, date: string) => Promise<DailyTracking | null>;
 }
 
 export const useTrackingStore = create<TrackingState>((set, get) => ({
@@ -39,6 +40,26 @@ export const useTrackingStore = create<TrackingState>((set, get) => ({
     } catch (error: any) {
       console.error('Failed to fetch today tracking:', error);
       set({ isLoading: false, error: error.message });
+    }
+  },
+
+  fetchTrackingForDate: async (traineeId: string, date: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('daily_tracking')
+        .select('*')
+        .eq('trainee_id', traineeId)
+        .eq('date', date)
+        .single();
+        
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+      
+      return data || null;
+    } catch (error: any) {
+      console.error('Failed to fetch tracking for date:', error);
+      return null;
     }
   },
 

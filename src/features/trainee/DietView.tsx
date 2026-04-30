@@ -119,6 +119,24 @@ export function DietView() {
   const progressPercentage = targetCalories > 0 ? Math.min(100, Math.round((totalConsumed / targetCalories) * 100)) : 0;
   const isOverTarget = totalConsumed > targetCalories;
   
+  // Macros
+  const targetProtein = meals.reduce((sum, meal) => sum + meal.target_protein, 0);
+  const targetCarbs = meals.reduce((sum, meal) => sum + meal.target_carbs, 0);
+  const targetFat = meals.reduce((sum, meal) => sum + meal.target_fat, 0);
+
+  const consumedProtein = meals.reduce((sum, meal) => todaysTracking?.completed_meals.includes(meal.id) ? sum + meal.target_protein : sum, 0) 
+    + (todaysTracking?.free_entries?.reduce((sum, entry) => sum + (entry.protein || 0), 0) || 0);
+    
+  const consumedCarbs = meals.reduce((sum, meal) => todaysTracking?.completed_meals.includes(meal.id) ? sum + meal.target_carbs : sum, 0)
+    + (todaysTracking?.free_entries?.reduce((sum, entry) => sum + (entry.carbs || 0), 0) || 0);
+    
+  const consumedFat = meals.reduce((sum, meal) => todaysTracking?.completed_meals.includes(meal.id) ? sum + meal.target_fat : sum, 0)
+    + (todaysTracking?.free_entries?.reduce((sum, entry) => sum + (entry.fats || 0), 0) || 0);
+
+  const proteinPercentage = targetProtein > 0 ? Math.min(100, Math.round((consumedProtein / targetProtein) * 100)) : 0;
+  const carbsPercentage = targetCarbs > 0 ? Math.min(100, Math.round((consumedCarbs / targetCarbs) * 100)) : 0;
+  const fatPercentage = targetFat > 0 ? Math.min(100, Math.round((consumedFat / targetFat) * 100)) : 0;
+  
   const handleAddFreeEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id || !freeEntryForm.name || !freeEntryForm.calories) return;
@@ -218,11 +236,51 @@ export function DietView() {
             {progressPercentage}%
           </div>
         </div>
-        <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+        <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden mb-4">
           <div 
             className={`h-full rounded-full transition-all duration-500 ease-out ${isOverTarget ? 'bg-red-500' : 'bg-emerald-500'}`}
             style={{ width: `${Math.min(100, progressPercentage)}%` }}
           />
+        </div>
+        
+        {/* Macro Progress Bars */}
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <div className="flex justify-between text-xs font-bold text-slate-500 mb-1">
+              <span>חלבון</span>
+              <span>{Math.round(consumedProtein)}/{Math.round(targetProtein)}g</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div 
+                className="h-full rounded-full transition-all duration-500 ease-out bg-emerald-500"
+                style={{ width: `${proteinPercentage}%` }}
+              />
+            </div>
+          </div>
+          <div>
+            <div className="flex justify-between text-xs font-bold text-slate-500 mb-1">
+              <span>פחמימה</span>
+              <span>{Math.round(consumedCarbs)}/{Math.round(targetCarbs)}g</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div 
+                className="h-full rounded-full transition-all duration-500 ease-out bg-blue-500"
+                style={{ width: `${carbsPercentage}%` }}
+              />
+            </div>
+          </div>
+          <div>
+            <div className="flex justify-between text-xs font-bold text-slate-500 mb-1">
+              <span>שומן</span>
+              <span>{Math.round(consumedFat)}/{Math.round(targetFat)}g</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div 
+                className="h-full rounded-full transition-all duration-500 ease-out bg-amber-500"
+                style={{ width: `${fatPercentage}%` }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
