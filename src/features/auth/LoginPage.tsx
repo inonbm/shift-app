@@ -15,7 +15,11 @@ export function LoginPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (user && profile) {
-      navigate(profile.role === 'trainer' ? '/trainer' : '/diet', { replace: true });
+      navigate(
+        profile.role === 'admin' ? '/admin' :
+        profile.role === 'trainer' ? '/trainer' : '/diet',
+        { replace: true }
+      );
     }
   }, [user, profile, navigate]);
 
