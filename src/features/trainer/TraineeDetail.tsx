@@ -234,20 +234,28 @@ export function TraineeDetail() {
     };
   };
 
-  /** Sums calories and macros across all three food-option arrays for a meal edit draft. */
+  /**
+   * Calculates representative meal totals for the edit-mode header chip.
+   *
+   * The three option arrays (protein_options, carb_options, fat_options) are
+   * mutually-exclusive "OR" choices: a trainee picks ONE item per category.
+   * We therefore use index [0] from each array as the representative sample
+   * instead of summing every alternative, which would massively overcount.
+   */
   const recalculateMealTotals = (
     edit: MealEdit
   ): { target_calories: number; target_protein: number; target_carbs: number; target_fat: number } => {
-    const allItems: MealFoodOption[] = [
-      ...edit.protein_options,
-      ...edit.carb_options,
-      ...edit.fat_options,
-    ];
+    const representative: MealFoodOption[] = [
+      edit.protein_options[0],
+      edit.carb_options[0],
+      edit.fat_options[0],
+    ].filter((o): o is MealFoodOption => o !== undefined);
+
     return {
-      target_calories: Math.round(allItems.reduce((sum, o) => sum + o.calories, 0)),
-      target_protein: Math.round(allItems.reduce((sum, o) => sum + o.protein_g, 0) * 10) / 10,
-      target_carbs: Math.round(allItems.reduce((sum, o) => sum + o.carbs_g, 0) * 10) / 10,
-      target_fat: Math.round(allItems.reduce((sum, o) => sum + o.fat_g, 0) * 10) / 10,
+      target_calories: Math.round(representative.reduce((sum, o) => sum + o.calories, 0)),
+      target_protein: Math.round(representative.reduce((sum, o) => sum + o.protein_g, 0) * 10) / 10,
+      target_carbs: Math.round(representative.reduce((sum, o) => sum + o.carbs_g, 0) * 10) / 10,
+      target_fat: Math.round(representative.reduce((sum, o) => sum + o.fat_g, 0) * 10) / 10,
     };
   };
 
