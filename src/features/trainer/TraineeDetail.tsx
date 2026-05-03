@@ -234,6 +234,23 @@ export function TraineeDetail() {
     };
   };
 
+  /** Sums calories and macros across all three food-option arrays for a meal edit draft. */
+  const recalculateMealTotals = (
+    edit: MealEdit
+  ): { target_calories: number; target_protein: number; target_carbs: number; target_fat: number } => {
+    const allItems: MealFoodOption[] = [
+      ...edit.protein_options,
+      ...edit.carb_options,
+      ...edit.fat_options,
+    ];
+    return {
+      target_calories: Math.round(allItems.reduce((sum, o) => sum + o.calories, 0)),
+      target_protein: Math.round(allItems.reduce((sum, o) => sum + o.protein_g, 0) * 10) / 10,
+      target_carbs: Math.round(allItems.reduce((sum, o) => sum + o.carbs_g, 0) * 10) / 10,
+      target_fat: Math.round(allItems.reduce((sum, o) => sum + o.fat_g, 0) * 10) / 10,
+    };
+  };
+
   const handleEditMenuClick = async () => {
     // Load foods if not loaded yet
     if (foods.length === 0) await fetchFoods();
@@ -289,17 +306,22 @@ export function TraineeDetail() {
   const handleSaveMenu = async () => {
     setIsSavingMenu(true);
     try {
-      const updates = Object.entries(menuEdits).map(([mealId, fields]) =>
-        supabase
+      const updates = Object.entries(menuEdits).map(([mealId, fields]) => {
+        const totals = recalculateMealTotals(fields);
+        return supabase
           .from('generated_meals')
           .update({
             meal_name: fields.meal_name,
             protein_options: fields.protein_options,
             carb_options: fields.carb_options,
             fat_options: fields.fat_options,
+            target_calories: totals.target_calories,
+            target_protein: totals.target_protein,
+            target_carbs: totals.target_carbs,
+            target_fat: totals.target_fat,
           })
-          .eq('id', mealId)
-      );
+          .eq('id', mealId);
+      });
       await Promise.all(updates);
       if (id) await fetchDiet(id);
       setIsEditingMenu(false);
@@ -773,9 +795,16 @@ export function TraineeDetail() {
                       ) : (
                         <h3 className="font-bold text-slate-800">{meal.meal_name}</h3>
                       )}
-                      <span className="text-xs font-bold bg-white px-2 py-1 rounded text-purple-600 border border-slate-200 whitespace-nowrap flex-shrink-0">
-                        ~{meal.target_calories} קק״ל
-                      </span>
+                      {(() => {
+                        const displayCalories = isEditingMenu && edit
+                          ? recalculateMealTotals(edit).target_calories
+                          : meal.target_calories;
+                        return (
+                          <span className="text-xs font-bold bg-white px-2 py-1 rounded text-purple-600 border border-slate-200 whitespace-nowrap flex-shrink-0">
+                            ~{displayCalories} קק״ל
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     {/* Macro columns */}
