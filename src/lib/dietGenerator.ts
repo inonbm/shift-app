@@ -76,6 +76,15 @@ function resolveOptions(
 }
 
 /**
+ * CRITICAL CALORIE RULE: Because resolveOptions rounds food weights up for user
+ * convenience (nearest 10 g or 5 g), the raw output would naturally exceed the
+ * requested calorie ceiling. To compensate, we pre-deflate each meal's macro
+ * targets by ROUNDING_BIAS_FACTOR before feeding them into the solver.
+ * This keeps the final totals roughly 50–100 kcal UNDER the ceiling.
+ */
+const ROUNDING_BIAS_FACTOR = 0.93;
+
+/**
  * Generates the full 4-meal diet plan using the Sequential Cross-Macro Solver.
  */
 export function generateDietPlan(
@@ -115,10 +124,11 @@ export function generateDietPlan(
   for (const distribution of MEAL_DISTRIBUTION) {
     const p = distribution.percentage;
     
-    // Isolate targets for this specific meal
-    const T_c = dailyCarbs * p;
-    const T_p = dailyProtein * p;
-    const T_f = dailyFat * p;
+    // Isolate targets for this specific meal and apply the rounding-bias
+    // pre-deflation so the rounded weights don't overshoot the calorie ceiling.
+    const T_c = dailyCarbs * p * ROUNDING_BIAS_FACTOR;
+    const T_p = dailyProtein * p * ROUNDING_BIAS_FACTOR;
+    const T_f = dailyFat * p * ROUNDING_BIAS_FACTOR;
 
     // Pick exactly 4 random foods per category for this meal
     const selectedCarbFoods = selectRandomUnique(carbFoods, 4);
