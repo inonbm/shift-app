@@ -13,10 +13,13 @@ export function Header() {
       <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
         
         {/* Logo */}
-        <div className="flex items-center gap-2">
+        <Link 
+          to="/" 
+          className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+        >
           <Activity className="text-emerald-500" size={28} strokeWidth={2.5} />
           <h1 className="text-2xl font-extrabold text-[#4A235A] tracking-wider mt-1">SHIFT</h1>
-        </div>
+        </Link>
 
         {/* Trainee Navigation Links */}
         {profile?.role === 'trainee' && (
