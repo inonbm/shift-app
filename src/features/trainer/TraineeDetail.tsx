@@ -12,6 +12,7 @@ import { DeleteUserModal } from '../../components/ui/DeleteUserModal';
 import { GOAL_LABELS, ACTIVITY_LEVEL_LABELS, GENDER_LABELS, MEASUREMENT_UNIT_LABELS } from '../../types';
 import type { Gender, ActivityLevel, Goal, TraineeData, MealFoodOption, Food, DailyTracking } from '../../types';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from '../../lib/nutrition';
+import { recalculateDietTotals } from '../../lib/dietGenerator';
 
 type Tab = 'overview' | 'diet' | 'workouts' | 'nutrition_log';
 
@@ -43,6 +44,10 @@ export function TraineeDetail() {
     protein_options: MealFoodOption[];
     carb_options: MealFoodOption[];
     fat_options: MealFoodOption[];
+    target_calories?: number;
+    target_protein?: number;
+    target_carbs?: number;
+    target_fat?: number;
   }
   const [isEditingMenu, setIsEditingMenu] = useState(false);
   const [isSavingMenu, setIsSavingMenu] = useState(false);
@@ -242,22 +247,7 @@ export function TraineeDetail() {
    * We therefore use index [0] from each array as the representative sample
    * instead of summing every alternative, which would massively overcount.
    */
-  const recalculateMealTotals = (
-    edit: MealEdit
-  ): { target_calories: number; target_protein: number; target_carbs: number; target_fat: number } => {
-    const representative: MealFoodOption[] = [
-      edit.protein_options[0],
-      edit.carb_options[0],
-      edit.fat_options[0],
-    ].filter((o): o is MealFoodOption => o !== undefined);
-
-    return {
-      target_calories: Math.round(representative.reduce((sum, o) => sum + o.calories, 0)),
-      target_protein: Math.round(representative.reduce((sum, o) => sum + o.protein_g, 0) * 10) / 10,
-      target_carbs: Math.round(representative.reduce((sum, o) => sum + o.carbs_g, 0) * 10) / 10,
-      target_fat: Math.round(representative.reduce((sum, o) => sum + o.fat_g, 0) * 10) / 10,
-    };
-  };
+  // No longer needed, use recalculateDietTotals instead
 
   const handleEditMenuClick = async () => {
     // Load foods if not loaded yet
@@ -269,6 +259,10 @@ export function TraineeDetail() {
         protein_options: [...m.protein_options],
         carb_options: [...m.carb_options],
         fat_options: [...m.fat_options],
+        target_calories: m.target_calories,
+        target_protein: m.target_protein,
+        target_carbs: m.target_carbs,
+        target_fat: m.target_fat,
       };
     });
     setMenuEdits(edits);
@@ -278,13 +272,19 @@ export function TraineeDetail() {
   };
 
   const handleRemoveItem = (mealId: string, category: 'protein_options' | 'carb_options' | 'fat_options', foodId: string) => {
-    setMenuEdits(prev => ({
-      ...prev,
-      [mealId]: {
+    setMenuEdits(prev => {
+      const updatedMeal = {
         ...prev[mealId],
         [category]: prev[mealId][category].filter(o => o.food_id !== foodId),
-      },
-    }));
+      };
+      
+      const [recalculated] = recalculateDietTotals([updatedMeal]);
+      
+      return {
+        ...prev,
+        [mealId]: recalculated
+      };
+    });
   };
 
   const handleAddItem = (mealId: string, category: 'protein_options' | 'carb_options' | 'fat_options') => {
@@ -293,13 +293,17 @@ export function TraineeDetail() {
     const food = foods.find(f => f.id === form.foodId);
     if (!food) return;
     const option = buildMealFoodOption(food, form.grams);
-    setMenuEdits(prev => ({
-      ...prev,
-      [mealId]: {
+    setMenuEdits(prev => {
+      const updatedMeal = {
         ...prev[mealId],
         [category]: [...prev[mealId][category], option],
-      },
-    }));
+      };
+      const [recalculated] = recalculateDietTotals([updatedMeal]);
+      return {
+        ...prev,
+        [mealId]: recalculated
+      };
+    });
     // Reset this add-form
     setAddForms(prev => ({
       ...prev,
@@ -311,11 +315,38 @@ export function TraineeDetail() {
     }));
   };
 
+  const handleUpdateItemAmount = (mealId: string, category: 'protein_options' | 'carb_options' | 'fat_options', foodId: string, newGrams: number) => {
+    if (newGrams < 0) return;
+    setMenuEdits(prev => {
+      const meal = prev[mealId];
+      const updatedOptions = meal[category].map(opt => {
+        if (opt.food_id === foodId) {
+          const food = foods.find(f => f.id === foodId);
+          if (food) {
+             return buildMealFoodOption(food, newGrams);
+          }
+        }
+        return opt;
+      });
+
+      const updatedMeal = {
+        ...meal,
+        [category]: updatedOptions
+      };
+
+      const [recalculated] = recalculateDietTotals([updatedMeal]);
+
+      return {
+        ...prev,
+        [mealId]: recalculated
+      };
+    });
+  };
+
   const handleSaveMenu = async () => {
     setIsSavingMenu(true);
     try {
       const updates = Object.entries(menuEdits).map(([mealId, fields]) => {
-        const totals = recalculateMealTotals(fields);
         return supabase
           .from('generated_meals')
           .update({
@@ -323,10 +354,10 @@ export function TraineeDetail() {
             protein_options: fields.protein_options,
             carb_options: fields.carb_options,
             fat_options: fields.fat_options,
-            target_calories: totals.target_calories,
-            target_protein: totals.target_protein,
-            target_carbs: totals.target_carbs,
-            target_fat: totals.target_fat,
+            target_calories: fields.target_calories || 0,
+            target_protein: fields.target_protein || 0,
+            target_carbs: fields.target_carbs || 0,
+            target_fat: fields.target_fat || 0,
           })
           .eq('id', mealId);
       });
@@ -805,7 +836,7 @@ export function TraineeDetail() {
                       )}
                       {(() => {
                         const displayCalories = isEditingMenu && edit
-                          ? recalculateMealTotals(edit).target_calories
+                          ? edit.target_calories
                           : meal.target_calories;
                         return (
                           <span className="text-xs font-bold bg-white px-2 py-1 rounded text-purple-600 border border-slate-200 whitespace-nowrap flex-shrink-0">
@@ -819,9 +850,9 @@ export function TraineeDetail() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* Render each category column */}
                       {([
-                        { key: 'carb_options' as const, label: 'פחמימות', color: 'blue', target: meal.target_carbs },
-                        { key: 'protein_options' as const, label: 'חלבונים', color: 'emerald', target: meal.target_protein },
-                        { key: 'fat_options' as const, label: 'שומנים', color: 'amber', target: meal.target_fat },
+                        { key: 'carb_options' as const, label: 'פחמימות', color: 'blue', target: isEditingMenu ? edit?.target_carbs : meal.target_carbs },
+                        { key: 'protein_options' as const, label: 'חלבונים', color: 'emerald', target: isEditingMenu ? edit?.target_protein : meal.target_protein },
+                        { key: 'fat_options' as const, label: 'שומנים', color: 'amber', target: isEditingMenu ? edit?.target_fat : meal.target_fat },
                       ]).map(col => {
                         const items: MealFoodOption[] = isEditingMenu ? (edit?.[col.key] ?? []) : (meal[col.key] ?? []);
                         const borderColor = `border-${col.color}-200`;
@@ -837,8 +868,19 @@ export function TraineeDetail() {
                             <ul className="text-xs text-slate-600 space-y-1.5 mb-2">
                               {items.map((opt) => (
                                 <li key={opt.food_id} className="flex items-center justify-between gap-1 bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100">
-                                  <span className="flex-1 truncate">
-                                    • {opt.grams}{(!opt.unit || opt.unit === 'g') ? 'g' : ` ${MEASUREMENT_UNIT_LABELS[opt.unit]}`} – {opt.food_name}
+                                  <span className="flex-1 truncate flex items-center gap-1">
+                                    • 
+                                    {isEditingMenu ? (
+                                      <input
+                                        type="number"
+                                        value={opt.grams}
+                                        onChange={(e) => handleUpdateItemAmount(meal.id, col.key, opt.food_id, Number(e.target.value))}
+                                        className="w-16 text-center font-bold bg-white border border-slate-300 rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-purple-400"
+                                      />
+                                    ) : (
+                                      <span>{opt.grams}</span>
+                                    )}
+                                    {(!opt.unit || opt.unit === 'g') ? 'g' : ` ${MEASUREMENT_UNIT_LABELS[opt.unit]}`} – {opt.food_name}
                                   </span>
                                   {isEditingMenu && (
                                     <button

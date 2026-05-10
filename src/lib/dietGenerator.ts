@@ -201,3 +201,34 @@ export function generateDietPlan(
 
   return meals;
 }
+
+/**
+ * Recalculates the target macros and calories for an array of meals.
+ * It maps over the meals, sums up the macros from all options (protein, carb, fat),
+ * and updates the target fields accordingly.
+ */
+export function recalculateDietTotals<T extends { 
+  protein_options: MealFoodOption[];
+  carb_options: MealFoodOption[];
+  fat_options: MealFoodOption[];
+  target_calories?: number;
+  target_protein?: number;
+  target_carbs?: number;
+  target_fat?: number;
+}>(meals: T[]): T[] {
+  return meals.map(meal => {
+    const allOptions = [
+      ...(meal.protein_options || []),
+      ...(meal.carb_options || []),
+      ...(meal.fat_options || [])
+    ];
+    
+    return {
+      ...meal,
+      target_calories: Math.round(allOptions.reduce((sum, o) => sum + o.calories, 0)),
+      target_protein: Math.round(allOptions.reduce((sum, o) => sum + o.protein_g, 0) * 10) / 10,
+      target_carbs: Math.round(allOptions.reduce((sum, o) => sum + o.carbs_g, 0) * 10) / 10,
+      target_fat: Math.round(allOptions.reduce((sum, o) => sum + o.fat_g, 0) * 10) / 10,
+    };
+  });
+}
