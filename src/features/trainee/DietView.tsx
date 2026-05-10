@@ -241,7 +241,7 @@ export function DietView() {
         </div>
         
         {/* Macro Progress Bars */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <MacroProgressBar
             label="חלבון"
             current={consumedProtein}
@@ -264,47 +264,47 @@ export function DietView() {
       </div>
 
       {/* Top Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
-          <div className="bg-purple-100 p-2.5 rounded-full text-purple-600 mb-3">
-            <Flame size={24} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="bg-white p-3 md:p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
+          <div className="bg-purple-100 p-2 md:p-2.5 rounded-full text-purple-600 mb-2 md:mb-3">
+            <Flame size={24} className="w-5 h-5 md:w-6 md:h-6" />
           </div>
-          <p className="text-sm font-bold text-slate-500 mb-1">יעד קלורי</p>
-          <p className="text-2xl font-extrabold text-slate-800">
+          <p className="text-xs md:text-sm font-bold text-slate-500 mb-1">יעד קלורי</p>
+          <p className="text-lg md:text-2xl font-extrabold text-slate-800">
             {data?.goal_calories ? Math.round(data.goal_calories).toLocaleString() : '---'}
           </p>
         </div>
         
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
-          <div className="bg-emerald-100 p-2.5 rounded-full text-emerald-600 mb-3">
-            <Dumbbell size={24} />
+        <div className="bg-white p-3 md:p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
+          <div className="bg-emerald-100 p-2 md:p-2.5 rounded-full text-emerald-600 mb-2 md:mb-3">
+            <Dumbbell size={24} className="w-5 h-5 md:w-6 md:h-6" />
           </div>
-          <p className="text-sm font-bold text-slate-500 mb-1">חלבון</p>
+          <p className="text-xs md:text-sm font-bold text-slate-500 mb-1">חלבון</p>
           <div className="flex items-end gap-1">
-            <p className="text-2xl font-extrabold text-slate-800">{data?.protein_grams ? Math.round(data.protein_grams) : '---'}</p>
-            <span className="text-slate-400 text-sm mb-1 font-medium">גרם</span>
+            <p className="text-lg md:text-2xl font-extrabold text-slate-800">{data?.protein_grams ? Math.round(data.protein_grams) : '---'}</p>
+            <span className="text-slate-400 text-xs md:text-sm mb-0.5 md:mb-1 font-medium">גרם</span>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
-          <div className="bg-blue-100 p-2.5 rounded-full text-blue-600 mb-3">
-            <Droplet size={24} />
+        <div className="bg-white p-3 md:p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
+          <div className="bg-blue-100 p-2 md:p-2.5 rounded-full text-blue-600 mb-2 md:mb-3">
+            <Droplet size={24} className="w-5 h-5 md:w-6 md:h-6" />
           </div>
-          <p className="text-sm font-bold text-slate-500 mb-1">פחמימה</p>
+          <p className="text-xs md:text-sm font-bold text-slate-500 mb-1">פחמימה</p>
           <div className="flex items-end gap-1">
-            <p className="text-2xl font-extrabold text-slate-800">{data?.carbs_grams ? Math.round(data.carbs_grams) : '---'}</p>
-            <span className="text-slate-400 text-sm mb-1 font-medium">גרם</span>
+            <p className="text-lg md:text-2xl font-extrabold text-slate-800">{data?.carbs_grams ? Math.round(data.carbs_grams) : '---'}</p>
+            <span className="text-slate-400 text-xs md:text-sm mb-0.5 md:mb-1 font-medium">גרם</span>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
-          <div className="bg-amber-100 p-2.5 rounded-full text-amber-600 mb-3">
-            <Activity size={24} />
+        <div className="bg-white p-3 md:p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
+          <div className="bg-amber-100 p-2 md:p-2.5 rounded-full text-amber-600 mb-2 md:mb-3">
+            <Activity size={24} className="w-5 h-5 md:w-6 md:h-6" />
           </div>
-          <p className="text-sm font-bold text-slate-500 mb-1">שומן</p>
+          <p className="text-xs md:text-sm font-bold text-slate-500 mb-1">שומן</p>
           <div className="flex items-end gap-1">
-            <p className="text-2xl font-extrabold text-slate-800">{data?.fat_grams ? Math.round(data.fat_grams) : '---'}</p>
-            <span className="text-slate-400 text-sm mb-1 font-medium">גרם</span>
+            <p className="text-lg md:text-2xl font-extrabold text-slate-800">{data?.fat_grams ? Math.round(data.fat_grams) : '---'}</p>
+            <span className="text-slate-400 text-xs md:text-sm mb-0.5 md:mb-1 font-medium">גרם</span>
           </div>
         </div>
       </div>
@@ -494,7 +494,7 @@ export function DietView() {
                 />
               </div>
               
-              <div className="grid grid-cols-3 gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 mb-1 text-center">חלבון (גרם)</label>
                   <input

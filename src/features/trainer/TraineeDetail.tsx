@@ -458,10 +458,10 @@ export function TraineeDetail() {
       )}
 
       {/* Tabs */}
-      <div className="flex bg-slate-200/50 p-1 rounded-xl w-fit mx-auto md:mx-0">
+      <div className="flex overflow-x-auto w-full md:w-fit bg-slate-200/50 p-1 rounded-xl mx-auto md:mx-0 snap-x">
         <button
           onClick={() => { setActiveTab('overview'); setIsEditing(false); }}
-          className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
+          className={`whitespace-nowrap flex-shrink-0 snap-start flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
             activeTab === 'overview' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
           }`}
         >
@@ -470,7 +470,7 @@ export function TraineeDetail() {
         </button>
         <button
           onClick={() => { setActiveTab('diet'); setIsEditing(false); }}
-          className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
+          className={`whitespace-nowrap flex-shrink-0 snap-start flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
             activeTab === 'diet' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
           }`}
         >
@@ -479,7 +479,7 @@ export function TraineeDetail() {
         </button>
         <button
           onClick={() => { setActiveTab('workouts'); setIsEditing(false); }}
-          className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
+          className={`whitespace-nowrap flex-shrink-0 snap-start flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
             activeTab === 'workouts' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
           }`}
         >
@@ -488,7 +488,7 @@ export function TraineeDetail() {
         </button>
         <button
           onClick={() => { setActiveTab('nutrition_log'); setIsEditing(false); }}
-          className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
+          className={`whitespace-nowrap flex-shrink-0 snap-start flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
             activeTab === 'nutrition_log' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
           }`}
         >
@@ -516,7 +516,7 @@ export function TraineeDetail() {
             {data ? (
               isEditing ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">גיל</label>
                       <input type="number" name="age" value={editForm.age || ''} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none text-sm" />
@@ -537,7 +537,7 @@ export function TraineeDetail() {
                       <label className="block text-xs font-semibold text-slate-500 mb-1">גובה (ס״מ)</label>
                       <input type="number" name="height_cm" value={editForm.height_cm || ''} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none text-sm" />
                     </div>
-                    <div className="col-span-2">
+                    <div className="col-span-1 md:col-span-2">
                       <label className="block text-xs font-semibold text-slate-500 mb-1">רמת פעילות</label>
                       <select name="activity_level" value={editForm.activity_level} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none text-sm">
                         {(Object.keys(ACTIVITY_LEVEL_LABELS) as ActivityLevel[]).map(lvl => (
@@ -545,7 +545,7 @@ export function TraineeDetail() {
                         ))}
                       </select>
                     </div>
-                    <div className="col-span-2">
+                    <div className="col-span-1 md:col-span-2">
                       <label className="block text-xs font-semibold text-slate-500 mb-1">מטרה תזונתית</label>
                       <select name="goal" value={editForm.goal} onChange={handleChange} className="w-full bg-purple-50 border border-purple-200 text-purple-900 font-bold rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-purple-400">
                         {(Object.keys(GOAL_LABELS) as Goal[]).map(g => (
@@ -589,7 +589,7 @@ export function TraineeDetail() {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-slate-500">גיל</p>
                     <p className="font-bold text-slate-800">{data.age} שנים</p>
@@ -606,11 +606,11 @@ export function TraineeDetail() {
                     <p className="text-sm text-slate-500">משקל</p>
                     <p className="font-bold text-slate-800">{data.weight_kg} ק״ג</p>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1 md:col-span-2">
                     <p className="text-sm text-slate-500">רמת פעילות</p>
                     <p className="font-bold text-slate-800">{ACTIVITY_LEVEL_LABELS[data.activity_level]}</p>
                   </div>
-                  <div className="col-span-2 bg-purple-50 p-3 rounded-xl border border-purple-100 mt-2">
+                  <div className="col-span-1 md:col-span-2 bg-purple-50 p-3 rounded-xl border border-purple-100 mt-2">
                     <p className="text-sm font-medium text-purple-600 mb-1">מטרה תזונתית</p>
                     <p className="font-bold text-purple-900 text-lg">{GOAL_LABELS[data.goal]}</p>
                   </div>
