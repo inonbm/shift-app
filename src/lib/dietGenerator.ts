@@ -217,18 +217,22 @@ export function recalculateDietTotals<T extends {
   target_fat?: number;
 }>(meals: T[]): T[] {
   return meals.map(meal => {
-    const allOptions = [
-      ...(meal.protein_options || []),
-      ...(meal.carb_options || []),
-      ...(meal.fat_options || [])
-    ];
+    // The option arrays (protein_options, carb_options, fat_options) are
+    // mutually-exclusive "OR" choices: a trainee picks ONE item per category.
+    // We use index [0] from each array as the representative sample
+    // instead of summing every alternative, which would massively overcount.
+    const representative = [
+      meal.protein_options?.[0],
+      meal.carb_options?.[0],
+      meal.fat_options?.[0]
+    ].filter((o): o is MealFoodOption => o !== undefined);
     
     return {
       ...meal,
-      target_calories: Math.round(allOptions.reduce((sum, o) => sum + o.calories, 0)),
-      target_protein: Math.round(allOptions.reduce((sum, o) => sum + o.protein_g, 0) * 10) / 10,
-      target_carbs: Math.round(allOptions.reduce((sum, o) => sum + o.carbs_g, 0) * 10) / 10,
-      target_fat: Math.round(allOptions.reduce((sum, o) => sum + o.fat_g, 0) * 10) / 10,
+      target_calories: Math.round(representative.reduce((sum, o) => sum + o.calories, 0)),
+      target_protein: Math.round(representative.reduce((sum, o) => sum + o.protein_g, 0) * 10) / 10,
+      target_carbs: Math.round(representative.reduce((sum, o) => sum + o.carbs_g, 0) * 10) / 10,
+      target_fat: Math.round(representative.reduce((sum, o) => sum + o.fat_g, 0) * 10) / 10,
     };
   });
 }
