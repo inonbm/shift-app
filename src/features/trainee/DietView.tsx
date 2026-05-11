@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Flame, Dumbbell, Droplet, Activity, ChevronDown, ChevronUp, Coffee, Loader2, Sparkles, CheckCircle2, Circle, Plus, Trash2, X } from 'lucide-react';
+import { Flame, Dumbbell, Droplet, Activity, ChevronDown, ChevronUp, Coffee, Loader2, Sparkles, CheckCircle2, Circle, Plus, Trash2, X, Info } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { useDietStore } from '../../stores/dietStore';
@@ -455,6 +455,47 @@ export function DietView() {
             לא הוזנו חריגות או פריטים חופשיים היום.
           </div>
         )}
+      </div>
+
+      {/* General Diet Guidelines */}
+      <div className="mt-8 bg-slate-50 border border-slate-200 rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <Info className="text-blue-500" />
+          המלצות לתזונה ממוקדת
+        </h3>
+        <ul className="space-y-3 text-sm text-slate-700 font-medium mb-6">
+          <li className="flex items-start gap-2">
+            <span className="text-blue-500 mt-0.5">•</span>
+            <span>יש לשקול את המזון באמצעות משקל מטבח לפי ההנחיות (לפני/אחרי בישול).</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-blue-500 mt-0.5">•</span>
+            <span>יש לשתות לפחות ליטר וחצי מים במהלך היום.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-blue-500 mt-0.5">•</span>
+            <span><strong>שימו לב:</strong> רוב הירקות מכילים קלוריות! הירקות היחידים המותרים לאכילה חופשית הם: מלפפון, חסה וסלרי. שאר הירקות יש להגביל/למדוד.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-blue-500 mt-0.5">•</span>
+            <span><strong>קפה:</strong> עד 3 כוסות ביום. כוס קפה ראשונה - ללא סוכר, רק שעה מרגע הקימה, ועם מעט מאוד חלב (עדיף ללא חלב בכלל אם אפשר).</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-blue-500 mt-0.5">•</span>
+            <span><strong>ימי אימון:</strong> מומלץ לרכז את רוב הפחמימות לארוחה שאחרי אימון הכוח.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-blue-500 mt-0.5">•</span>
+            <span>ניתן להחליף בין האופציות ולגוון חופשי, כל עוד נשמר היעד הקלורי והחלבון היומי.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-blue-500 mt-0.5">•</span>
+            <span>ארוחות במסעדות או חריגות - בתיאום איתי.</span>
+          </li>
+        </ul>
+        <div className="bg-white p-4 rounded-xl border border-slate-100 text-xs text-slate-500 leading-relaxed">
+          <strong className="text-slate-700">הבהרה משפטית:</strong> צוות SHIFT הינם מאמני כושר ואינם דיאטנים קליניים או רופאים. תבנית זו מהווה המלצה כללית בלבד לאורח חיים אקטיבי ובריא, ואינה מהווה תחליף לייעוץ תזונתי, רפואי או קליני מוסמך. יישום ההמלצות הינו באחריות המתאמן בלבד. במקרה של רגישויות, אלרגיות, מחלות רקע או היריון, חובה להתייעץ עם רופא או תזונאי קליני בטרם תחילת התוכנית.
+        </div>
       </div>
       
       {/* Free Entry Modal */}
