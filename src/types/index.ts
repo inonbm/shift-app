@@ -48,6 +48,8 @@ export interface TraineeData {
   carbs_grams: number;
   fat_grams: number;
   is_busy_lifestyle: boolean;
+  is_advanced: boolean;
+  is_available_4_plus_days: boolean;
   updated_at: string;
 }
 
@@ -174,6 +176,8 @@ export interface CreateTraineeInput {
   activity_level: ActivityLevel;
   goal: Goal;
   is_busy_lifestyle?: boolean;
+  is_advanced?: boolean;
+  is_available_4_plus_days?: boolean;
 }
 
 export interface CreateFoodInput {

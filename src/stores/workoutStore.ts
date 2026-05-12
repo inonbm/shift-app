@@ -42,6 +42,11 @@ interface WorkoutState {
   fetchHistory: () => Promise<void>;
   logSession: (input: LogSessionInput) => Promise<void>;
   
+  deleteTemplate: (templateId: string) => Promise<void>;
+  updateExercise: (exerciseId: string, updates: Partial<TemplateExercise>) => Promise<void>;
+  addExerciseToTemplate: (templateId: string, exercise: Omit<TemplateExercise, 'id' | 'template_id'>) => Promise<void>;
+  deleteExercise: (exerciseId: string) => Promise<void>;
+
   clearError: () => void;
 }
 
@@ -180,6 +185,58 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         isLoading: false,
         error: error instanceof Error ? error.message : 'שגיאה בשמירת האימון'
       });
+      throw error;
+    }
+  },
+
+  deleteTemplate: async (templateId: string) => {
+    try {
+      set({ isLoading: true, error: null });
+      const { error } = await supabase.from('workout_templates').delete().eq('id', templateId);
+      if (error) throw error;
+      await get().fetchTemplates();
+    } catch (error) {
+      console.error('Failed to delete template:', error);
+      set({ isLoading: false, error: error instanceof Error ? error.message : 'שגיאה במחיקת תבנית' });
+      throw error;
+    }
+  },
+
+  updateExercise: async (exerciseId: string, updates: Partial<TemplateExercise>) => {
+    try {
+      set({ isLoading: true, error: null });
+      const { error } = await supabase.from('template_exercises').update(updates).eq('id', exerciseId);
+      if (error) throw error;
+      await get().fetchTemplates();
+    } catch (error) {
+      console.error('Failed to update exercise:', error);
+      set({ isLoading: false, error: error instanceof Error ? error.message : 'שגיאה בעדכון תרגיל' });
+      throw error;
+    }
+  },
+
+  addExerciseToTemplate: async (templateId: string, exercise: Omit<TemplateExercise, 'id' | 'template_id'>) => {
+    try {
+      set({ isLoading: true, error: null });
+      const { error } = await supabase.from('template_exercises').insert({ ...exercise, template_id: templateId });
+      if (error) throw error;
+      await get().fetchTemplates();
+    } catch (error) {
+      console.error('Failed to add exercise:', error);
+      set({ isLoading: false, error: error instanceof Error ? error.message : 'שגיאה בהוספת תרגיל' });
+      throw error;
+    }
+  },
+
+  deleteExercise: async (exerciseId: string) => {
+    try {
+      set({ isLoading: true, error: null });
+      const { error } = await supabase.from('template_exercises').delete().eq('id', exerciseId);
+      if (error) throw error;
+      await get().fetchTemplates();
+    } catch (error) {
+      console.error('Failed to delete exercise:', error);
+      set({ isLoading: false, error: error instanceof Error ? error.message : 'שגיאה במחיקת תרגיל' });
       throw error;
     }
   },

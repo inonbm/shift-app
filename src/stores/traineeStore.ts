@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { TraineeWithData, TraineeData, CreateTraineeInput } from '../types';
 import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from '../lib/nutrition';
+import { assignDefaultWorkoutTemplate } from '../lib/workoutDefaults';
 
 interface TraineeState {
   /** List of trainees managed by the current trainer */
@@ -227,6 +228,8 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
         protein_grams: macros.proteinGrams,
         carbs_grams: macros.carbsGrams,
         fat_grams: macros.fatGrams,
+        is_advanced: input.is_advanced ?? false,
+        is_available_4_plus_days: input.is_available_4_plus_days ?? false,
       };
 
       const { error: dataError } = await supabase
@@ -235,7 +238,16 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
 
       if (dataError) throw dataError;
 
-      // 4. Refresh trainee list
+      // 4. Assign default workout plan based on attributes
+      await assignDefaultWorkoutTemplate(
+        traineeId,
+        currentUser.id,
+        input.gender,
+        input.is_advanced ?? false,
+        input.is_available_4_plus_days ?? false
+      );
+
+      // 5. Refresh trainee list
       await get().fetchTrainees();
     } catch (error) {
       console.error('Failed to create trainee:', error);

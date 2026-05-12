@@ -358,6 +358,41 @@ export function TraineeForm() {
               </div>
             </label>
 
+            {/* Workout Assignment Flags (Male only) */}
+            {formData.gender === 'male' && (
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-4">
+                <div className="text-sm font-bold text-blue-800 mb-2 border-b border-blue-200 pb-2">הגדרות תוכנית אימון</div>
+                
+                <label className="flex items-start gap-3 cursor-pointer hover:bg-blue-100/50 p-2 rounded-lg transition-colors">
+                  <input
+                    type="checkbox"
+                    name="is_advanced"
+                    checked={formData.is_advanced || false}
+                    onChange={handleCheckboxChange}
+                    className="mt-0.5 w-5 h-5 rounded accent-blue-500 flex-shrink-0 cursor-pointer"
+                  />
+                  <div>
+                    <p className="font-bold text-blue-800 text-sm">מתאמן מתקדם (Advanced)</p>
+                    <p className="text-xs text-blue-600 mt-0.5">בעל ותק וניסיון של למעלה מ-6 חודשים באימוני כוח.</p>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer hover:bg-blue-100/50 p-2 rounded-lg transition-colors">
+                  <input
+                    type="checkbox"
+                    name="is_available_4_plus_days"
+                    checked={formData.is_available_4_plus_days || false}
+                    onChange={handleCheckboxChange}
+                    className="mt-0.5 w-5 h-5 rounded accent-blue-500 flex-shrink-0 cursor-pointer"
+                  />
+                  <div>
+                    <p className="font-bold text-blue-800 text-sm">פנוי ל-4+ אימונים בשבוע</p>
+                    <p className="text-xs text-blue-600 mt-0.5">במידה ומסומן יחד עם "מתאמן מתקדם", תשובץ תוכנית AB למתקדמים.</p>
+                  </div>
+                </label>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex gap-3">
               <button

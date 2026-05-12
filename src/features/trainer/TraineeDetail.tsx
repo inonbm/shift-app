@@ -22,7 +22,7 @@ export function TraineeDetail() {
   
   const { currentTrainee, fetchTraineeById, updateTraineeData, isLoading: isTraineeLoading, error: traineeError } = useTraineeStore();
   const { meals, fetchDiet, generateDiet, isLoading: isDietLoading, error: dietError } = useDietStore();
-  const { templates, fetchTemplates, sessions, fetchHistory, error: workoutError } = useWorkoutStore();
+  const { templates, fetchTemplates, sessions, fetchHistory, deleteTemplate, updateExercise, addExerciseToTemplate, deleteExercise, error: workoutError } = useWorkoutStore();
   const { foods, fetchFoods } = useFoodStore();
   const { fetchTrackingForDate } = useTrackingStore();
 
@@ -60,6 +60,11 @@ export function TraineeDetail() {
   const [logDate, setLogDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [dayLog, setDayLog] = useState<DailyTracking | null>(null);
   const [isLogLoading, setIsLogLoading] = useState(false);
+
+  // --- Workout editing state ---
+  const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
+  const [exerciseForm, setExerciseForm] = useState<{ exercise_name: string; target_sets: number; target_reps: number }>({ exercise_name: '', target_sets: 3, target_reps: 10 });
+  const [addingToTemplateId, setAddingToTemplateId] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -1004,15 +1009,128 @@ export function TraineeDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {traineeTemplates.map(template => (
                 <div key={template.id} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                  <h3 className="font-bold text-slate-800 mb-3">{template.name}</h3>
+                  <div className="flex justify-between items-center mb-3 border-b border-slate-200 pb-2">
+                    <h3 className="font-bold text-slate-800">{template.name}</h3>
+                    <button
+                      onClick={() => {
+                        if (confirm('האם אתה בטוח שברצונך למחוק תוכנית אימון זו?')) {
+                          deleteTemplate(template.id);
+                        }
+                      }}
+                      className="text-red-500 hover:text-red-700 p-1"
+                      title="מחק תוכנית"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  
                   <div className="space-y-2">
                     {template.exercises.sort((a,b) => a.order_index - b.order_index).map(ex => (
                       <div key={ex.id} className="flex justify-between items-center text-sm bg-white p-2 rounded-lg border border-slate-100">
-                        <span className="font-medium text-slate-700">{ex.exercise_name}</span>
-                        <span className="text-xs text-slate-500 font-mono">{ex.target_sets} × {ex.target_reps}</span>
+                        {editingExerciseId === ex.id ? (
+                          <div className="flex-1 flex gap-2">
+                            <input 
+                              type="text" 
+                              value={exerciseForm.exercise_name} 
+                              onChange={e => setExerciseForm({ ...exerciseForm, exercise_name: e.target.value })}
+                              className="w-full px-2 py-1 text-xs border rounded bg-slate-50"
+                            />
+                            <input 
+                              type="number" 
+                              value={exerciseForm.target_sets} 
+                              onChange={e => setExerciseForm({ ...exerciseForm, target_sets: Number(e.target.value) })}
+                              className="w-12 px-2 py-1 text-xs border rounded bg-slate-50 text-center"
+                            />
+                            <span className="self-center text-slate-400">×</span>
+                            <input 
+                              type="number" 
+                              value={exerciseForm.target_reps} 
+                              onChange={e => setExerciseForm({ ...exerciseForm, target_reps: Number(e.target.value) })}
+                              className="w-12 px-2 py-1 text-xs border rounded bg-slate-50 text-center"
+                            />
+                            <button onClick={() => {
+                              updateExercise(ex.id, exerciseForm);
+                              setEditingExerciseId(null);
+                            }} className="text-emerald-500 hover:text-emerald-700">
+                              <Save size={16} />
+                            </button>
+                            <button onClick={() => setEditingExerciseId(null)} className="text-slate-400 hover:text-slate-600">
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="font-medium text-slate-700">{ex.exercise_name}</span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-xs text-slate-500 font-mono">{ex.target_sets} × {ex.target_reps}</span>
+                              <button 
+                                onClick={() => {
+                                  setEditingExerciseId(ex.id);
+                                  setExerciseForm({ exercise_name: ex.exercise_name, target_sets: ex.target_sets, target_reps: ex.target_reps });
+                                }} 
+                                className="text-blue-500 hover:text-blue-700"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                              <button onClick={() => deleteExercise(ex.id)} className="text-red-400 hover:text-red-600">
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
+
+                  {addingToTemplateId === template.id ? (
+                    <div className="mt-3 bg-white p-2 border border-blue-200 rounded-lg flex gap-2 text-sm">
+                      <input 
+                        type="text" 
+                        placeholder="שם תרגיל"
+                        value={exerciseForm.exercise_name} 
+                        onChange={e => setExerciseForm({ ...exerciseForm, exercise_name: e.target.value })}
+                        className="w-full px-2 py-1 text-xs border rounded bg-slate-50"
+                      />
+                      <input 
+                        type="number" 
+                        placeholder="סטים"
+                        value={exerciseForm.target_sets} 
+                        onChange={e => setExerciseForm({ ...exerciseForm, target_sets: Number(e.target.value) })}
+                        className="w-12 px-2 py-1 text-xs border rounded bg-slate-50 text-center"
+                      />
+                      <input 
+                        type="number" 
+                        placeholder="חזרות"
+                        value={exerciseForm.target_reps} 
+                        onChange={e => setExerciseForm({ ...exerciseForm, target_reps: Number(e.target.value) })}
+                        className="w-12 px-2 py-1 text-xs border rounded bg-slate-50 text-center"
+                      />
+                      <button onClick={() => {
+                        addExerciseToTemplate(template.id, {
+                          exercise_name: exerciseForm.exercise_name,
+                          target_sets: exerciseForm.target_sets,
+                          target_reps: exerciseForm.target_reps,
+                          order_index: template.exercises.length
+                        });
+                        setAddingToTemplateId(null);
+                      }} className="text-emerald-500 hover:text-emerald-700">
+                        <Plus size={16} />
+                      </button>
+                      <button onClick={() => setAddingToTemplateId(null)} className="text-slate-400 hover:text-slate-600">
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => {
+                        setAddingToTemplateId(template.id);
+                        setExerciseForm({ exercise_name: '', target_sets: 3, target_reps: 10 });
+                      }}
+                      className="mt-3 w-full py-1.5 text-xs text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors border border-dashed border-blue-200 flex items-center justify-center gap-1"
+                    >
+                      <Plus size={14} /> הוסף תרגיל
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
