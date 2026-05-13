@@ -144,7 +144,7 @@ export function TraineeDetail() {
     const bmr = calculateBMR(editForm.gender as Gender, editForm.weight_kg, editForm.height_cm, editForm.age);
     const tdee = calculateTDEE(bmr, editForm.activity_level as ActivityLevel);
     const goalCalories = calculateTargetCalories(tdee, editForm.goal as Goal);
-    const macros = calculateMacros(editForm.weight_kg, Math.max(0, goalCalories));
+    const macros = calculateMacros(editForm.weight_kg, Math.max(0, goalCalories), editForm.protein_factor || 2.0);
 
     const payload: Partial<TraineeData> = {
       ...editForm,
@@ -573,6 +573,25 @@ export function TraineeDetail() {
                           <option key={g} value={g}>{GOAL_LABELS[g]}</option>
                         ))}
                       </select>
+                    </div>
+                    <div className="col-span-2 md:col-span-4 mt-2">
+                      <label className="block text-xs font-semibold text-slate-500 mb-1">יעד חלבון (גרם לק״ג)</label>
+                      <div className="flex bg-slate-100 p-1 rounded-lg">
+                        {[1.8, 2.0, 2.2].map(factor => (
+                          <button
+                            key={factor}
+                            type="button"
+                            onClick={() => setEditForm(prev => ({ ...prev, protein_factor: factor }))}
+                            className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
+                              (editForm.protein_factor || 2.0) === factor
+                                ? 'bg-white text-emerald-600 shadow-sm border border-slate-200'
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                          >
+                            {factor}g
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 

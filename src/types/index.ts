@@ -50,6 +50,7 @@ export interface TraineeData {
   is_busy_lifestyle: boolean;
   is_advanced: boolean;
   is_available_4_plus_days: boolean;
+  protein_factor?: number;
   updated_at: string;
 }
 
@@ -179,6 +180,7 @@ export interface CreateTraineeInput {
   is_busy_lifestyle?: boolean;
   is_advanced?: boolean;
   is_available_4_plus_days?: boolean;
+  protein_factor?: number;
 }
 
 export interface CreateFoodInput {
@@ -220,10 +222,10 @@ export const GOAL_CALORIE_ADJUSTMENTS: Record<Goal, number> = {
 
 /** Meal distribution as percentage of daily calories */
 export const MEAL_DISTRIBUTION = [
-  { index: 0, name: 'ארוחת בוקר', percentage: 0.20 },
-  { index: 1, name: 'ארוחת צהריים', percentage: 0.30 },
-  { index: 2, name: 'ארוחת ביניים', percentage: 0.15 },
-  { index: 3, name: 'ארוחת ערב', percentage: 0.35 },
+  { index: 0, name: 'ארוחה 1', percentage: 0.20 },
+  { index: 1, name: 'ארוחה 2', percentage: 0.30 },
+  { index: 2, name: 'ארוחה 3', percentage: 0.15 },
+  { index: 3, name: 'ארוחה 4', percentage: 0.35 },
 ] as const;
 
 // --- Hebrew Labels ---

@@ -214,7 +214,7 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
       const bmr = calculateBMR(input.gender, input.weight_kg, input.height_cm, input.age);
       const tdee = calculateTDEE(bmr, input.activity_level);
       const goalCalories = calculateTargetCalories(tdee, input.goal);
-      const macros = calculateMacros(input.weight_kg, Math.max(0, goalCalories));
+      const macros = calculateMacros(input.weight_kg, Math.max(0, goalCalories), input.protein_factor || 2.0);
 
       // 3. Insert the physical data via primary client (RLS is now satisfied)
       const traineeData: Partial<TraineeData> = {
@@ -234,6 +234,7 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
         fat_grams: macros.fatGrams,
         is_advanced: input.is_advanced ?? false,
         is_available_4_plus_days: input.is_available_4_plus_days ?? false,
+        protein_factor: input.protein_factor || 2.0,
       };
 
       const { error: dataError } = await supabase
