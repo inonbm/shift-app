@@ -164,9 +164,9 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
       // before updating trainer_id, otherwise the RLS check in manages_trainee()
       // will fail with a 403 when we try to insert into trainee_data.
 
-      // 2a. Poll until the profile row exists (max ~5 seconds)
+      // 2a. Poll until the profile row exists (max ~7.5 seconds)
       let profileReady = false;
-      for (let attempt = 0; attempt < 10; attempt++) {
+      for (let attempt = 0; attempt < 15; attempt++) {
         const { data: profileCheck } = await supabase
           .from('profiles')
           .select('id')
@@ -195,20 +195,20 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
       // 2c. Confirm the trainer_id update has propagated before touching trainee_data.
       // This ensures manages_trainee(traineeId) returns true for the INSERT RLS policy.
       let trainerLinked = false;
-      for (let attempt = 0; attempt < 6; attempt++) {
+      for (let attempt = 0; attempt < 10; attempt++) {
         const { data: linkCheck } = await supabase
           .from('profiles')
           .select('trainer_id')
           .eq('id', traineeId)
-          .single();
+          .maybeSingle();
 
         if (linkCheck?.trainer_id === currentUser.id) {
           trainerLinked = true;
           break;
         }
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 500));
       }
-      if (!trainerLinked) throw new Error('Trainer link timed out. Please try again.');
+      if (!trainerLinked) throw new Error('Trainer link timed out. The profile update was too slow.');
 
       // Calculate initial nutrition targets based on form input
       const bmr = calculateBMR(input.gender, input.weight_kg, input.height_cm, input.age);
@@ -270,11 +270,12 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
         }
         throw innerError;
       }
-    } catch (error) {
-      console.error('Failed to create trainee:', error);
+    } catch (error: any) {
+      console.error('Failed to create trainee [FULL ERROR]:', JSON.stringify(error, null, 2), error);
+      const errMsg = error?.message || (typeof error === 'string' ? error : 'Failed to create trainee');
       set({
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to create trainee',
+        error: errMsg,
       });
       throw error; // Re-throw to be handled by UI
     }

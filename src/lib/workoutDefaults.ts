@@ -105,7 +105,7 @@ export async function assignDefaultWorkoutTemplate(
       .single();
 
     if (templateError) {
-      console.error('Failed to create default workout template:', templateError);
+      console.error('Failed to create default workout template [FULL]:', JSON.stringify(templateError, null, 2));
       throw templateError;
     }
 
@@ -123,7 +123,7 @@ export async function assignDefaultWorkoutTemplate(
       .insert(exercisesToInsert);
 
     if (exercisesError) {
-      console.error('Failed to insert default template exercises:', exercisesError);
+      console.error('Failed to insert default template exercises [FULL]:', JSON.stringify(exercisesError, null, 2));
       throw exercisesError;
     }
   }
