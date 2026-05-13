@@ -138,12 +138,34 @@ export function ActiveWorkout() {
       )}
 
       {/* Exercises List */}
-      <div className="space-y-6">
-        {activeExercises.map((ex, index) => (
-          <div key={ex.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="bg-slate-50 px-5 py-3 border-b border-slate-100">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <span className="bg-emerald-100 text-emerald-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">{index + 1}</span>
+      <div className="space-y-8">
+        {(() => {
+          const grouped = activeExercises.reduce((acc, ex) => {
+            const area = ex.focus_area || 'כללי';
+            if (!acc[area]) acc[area] = [];
+            acc[area].push(ex);
+            return acc;
+          }, {} as Record<string, typeof activeExercises>);
+
+          let globalIndex = 0;
+
+          return Object.entries(grouped).map(([area, exercises]) => (
+            <div key={area} className="space-y-4">
+              {area !== 'כללי' && (
+                <div className="flex items-center gap-4 px-2">
+                  <div className="h-px bg-emerald-200/50 flex-1"></div>
+                  <h2 className="text-lg font-black text-emerald-800">{area}</h2>
+                  <div className="h-px bg-emerald-200/50 flex-1"></div>
+                </div>
+              )}
+              
+              {exercises.map((ex) => {
+                globalIndex++;
+                return (
+                  <div key={ex.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                    <div className="bg-slate-50 px-5 py-3 border-b border-slate-100">
+                      <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                        <span className="bg-emerald-100 text-emerald-700 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">{globalIndex}</span>
                 {ex.exercise_name}
               </h3>
               <p className="text-xs text-slate-500 mt-1 mr-8">
@@ -204,9 +226,13 @@ export function ActiveWorkout() {
                   );
                 })}
               </div>
+                              </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        ))}
+          ));
+        })()}
       </div>
 
       {/* Notes */}

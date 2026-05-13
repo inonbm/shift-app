@@ -114,6 +114,7 @@ export interface TemplateExercise {
   target_sets: number;
   target_reps: number;
   order_index: number;
+  focus_area?: string;
 }
 
 /** Template with its exercises pre-loaded */

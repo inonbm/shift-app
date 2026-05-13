@@ -1040,62 +1040,80 @@ export function TraineeDetail() {
                     </button>
                   </div>
                   
-                  <div className="space-y-2">
-                    {template.exercises.sort((a,b) => a.order_index - b.order_index).map(ex => (
-                      <div key={ex.id} className="flex justify-between items-center text-sm bg-white p-2 rounded-lg border border-slate-100">
-                        {editingExerciseId === ex.id ? (
-                          <div className="flex-1 flex gap-2">
-                            <input 
-                              type="text" 
-                              value={exerciseForm.exercise_name} 
-                              onChange={e => setExerciseForm({ ...exerciseForm, exercise_name: e.target.value })}
-                              className="w-full px-2 py-1 text-xs border rounded bg-slate-50"
-                            />
-                            <input 
-                              type="number" 
-                              value={exerciseForm.target_sets} 
-                              onChange={e => setExerciseForm({ ...exerciseForm, target_sets: Number(e.target.value) })}
-                              className="w-12 px-2 py-1 text-xs border rounded bg-slate-50 text-center"
-                            />
-                            <span className="self-center text-slate-400">×</span>
-                            <input 
-                              type="number" 
-                              value={exerciseForm.target_reps} 
-                              onChange={e => setExerciseForm({ ...exerciseForm, target_reps: Number(e.target.value) })}
-                              className="w-12 px-2 py-1 text-xs border rounded bg-slate-50 text-center"
-                            />
-                            <button onClick={() => {
-                              updateExercise(ex.id, exerciseForm);
-                              setEditingExerciseId(null);
-                            }} className="text-emerald-500 hover:text-emerald-700">
-                              <Save size={16} />
-                            </button>
-                            <button onClick={() => setEditingExerciseId(null)} className="text-slate-400 hover:text-slate-600">
-                              <X size={16} />
-                            </button>
-                          </div>
-                        ) : (
-                          <>
-                            <span className="font-medium text-slate-700">{ex.exercise_name}</span>
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs text-slate-500 font-mono">{ex.target_sets} × {ex.target_reps}</span>
-                              <button 
-                                onClick={() => {
-                                  setEditingExerciseId(ex.id);
-                                  setExerciseForm({ exercise_name: ex.exercise_name, target_sets: ex.target_sets, target_reps: ex.target_reps });
-                                }} 
-                                className="text-blue-500 hover:text-blue-700"
-                              >
-                                <Edit2 size={14} />
-                              </button>
-                              <button onClick={() => deleteExercise(ex.id)} className="text-red-400 hover:text-red-600">
-                                <Trash2 size={14} />
-                              </button>
+                  <div className="space-y-4">
+                    {(() => {
+                      const sorted = [...template.exercises].sort((a,b) => a.order_index - b.order_index);
+                      
+                      const grouped = sorted.reduce((acc, ex) => {
+                        const area = ex.focus_area || 'כללי';
+                        if (!acc[area]) acc[area] = [];
+                        acc[area].push(ex);
+                        return acc;
+                      }, {} as Record<string, typeof sorted>);
+
+                      return Object.entries(grouped).map(([area, exercises]) => (
+                        <div key={area} className="space-y-2">
+                          {area !== 'כללי' && (
+                            <h4 className="text-xs font-bold text-slate-500 mb-1 px-1 border-b border-slate-200 pb-1">{area}</h4>
+                          )}
+                          {exercises.map(ex => (
+                            <div key={ex.id} className="flex justify-between items-center text-sm bg-white p-2 rounded-lg border border-slate-100">
+                              {editingExerciseId === ex.id ? (
+                                <div className="flex-1 flex gap-2">
+                                  <input 
+                                    type="text" 
+                                    value={exerciseForm.exercise_name} 
+                                    onChange={e => setExerciseForm({ ...exerciseForm, exercise_name: e.target.value })}
+                                    className="w-full px-2 py-1 text-xs border rounded bg-slate-50"
+                                  />
+                                  <input 
+                                    type="number" 
+                                    value={exerciseForm.target_sets} 
+                                    onChange={e => setExerciseForm({ ...exerciseForm, target_sets: Number(e.target.value) })}
+                                    className="w-12 px-2 py-1 text-xs border rounded bg-slate-50 text-center"
+                                  />
+                                  <span className="self-center text-slate-400">×</span>
+                                  <input 
+                                    type="number" 
+                                    value={exerciseForm.target_reps} 
+                                    onChange={e => setExerciseForm({ ...exerciseForm, target_reps: Number(e.target.value) })}
+                                    className="w-12 px-2 py-1 text-xs border rounded bg-slate-50 text-center"
+                                  />
+                                  <button onClick={() => {
+                                    updateExercise(ex.id, exerciseForm);
+                                    setEditingExerciseId(null);
+                                  }} className="text-emerald-500 hover:text-emerald-700">
+                                    <Save size={16} />
+                                  </button>
+                                  <button onClick={() => setEditingExerciseId(null)} className="text-slate-400 hover:text-slate-600">
+                                    <X size={16} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <span className="font-medium text-slate-700">{ex.exercise_name}</span>
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xs text-slate-500 font-mono">{ex.target_sets} × {ex.target_reps}</span>
+                                    <button 
+                                      onClick={() => {
+                                        setEditingExerciseId(ex.id);
+                                        setExerciseForm({ exercise_name: ex.exercise_name, target_sets: ex.target_sets, target_reps: ex.target_reps });
+                                      }} 
+                                      className="text-blue-500 hover:text-blue-700"
+                                    >
+                                      <Edit2 size={14} />
+                                    </button>
+                                    <button onClick={() => deleteExercise(ex.id)} className="text-red-400 hover:text-red-600">
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </>
+                              )}
                             </div>
-                          </>
-                        )}
-                      </div>
-                    ))}
+                          ))}
+                        </div>
+                      ));
+                    })()}
                   </div>
 
                   {addingToTemplateId === template.id ? (
