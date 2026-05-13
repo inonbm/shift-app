@@ -14,18 +14,25 @@ export interface DefaultProgram {
 }
 
 export const FULL_BODY_WOMEN: DefaultProgram = {
-  name: 'Full Body Women',
+  name: 'נשים - פול באדי',
   exercises: [
-    { exercise_name: 'Squat', target_sets: 3, target_reps: 12 },
-    { exercise_name: 'Leg Curl', target_sets: 3, target_reps: 12 },
-    { exercise_name: 'Adductors', target_sets: 3, target_reps: 15 },
-    { exercise_name: 'Hip Thrust', target_sets: 4, target_reps: 10 },
-    { exercise_name: 'Abductors', target_sets: 3, target_reps: 15 },
-    { exercise_name: 'Kickback', target_sets: 3, target_reps: 15 },
-    { exercise_name: 'Row', target_sets: 3, target_reps: 12 },
-    { exercise_name: 'DB Press', target_sets: 3, target_reps: 12 },
-    { exercise_name: 'Tricep Pushdown', target_sets: 3, target_reps: 15 },
-    { exercise_name: 'Bosu Crunches', target_sets: 3, target_reps: 20 },
+    // Legs
+    { focus_area: 'רגליים', exercise_name: 'סקוואט בסמית', target_sets: 3, target_reps: 12 },
+    { focus_area: 'רגליים', exercise_name: 'כפיפת ברכיים- המסטרינג', target_sets: 3, target_reps: 12 },
+    { focus_area: 'רגליים', exercise_name: 'מקרבי ירך', target_sets: 3, target_reps: 15 },
+    
+    // Glutes
+    { focus_area: 'ישבן', exercise_name: 'היפ טראסט', target_sets: 4, target_reps: 10 },
+    { focus_area: 'ישבן', exercise_name: 'מרחיקי ירך', target_sets: 3, target_reps: 15 },
+    { focus_area: 'ישבן', exercise_name: 'קיק בק בכבל/מכונה', target_sets: 3, target_reps: 15 },
+    
+    // Upper Body
+    { focus_area: 'פלג גוף עליון- חיזוק', exercise_name: 'חתירה רחבה בפולי', target_sets: 3, target_reps: 12 },
+    { focus_area: 'פלג גוף עליון- חיזוק', exercise_name: 'לחיצת חזה עם דאמבלים', target_sets: 3, target_reps: 12 },
+    { focus_area: 'פלג גוף עליון- חיזוק', exercise_name: 'פשיטת מרפקים כנגד פולי', target_sets: 3, target_reps: 15 },
+    
+    // Abs
+    { focus_area: 'בטן', exercise_name: 'כפיפת בטן על בוסו', target_sets: 3, target_reps: 20 },
   ]
 };
 
