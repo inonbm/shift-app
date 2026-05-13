@@ -421,28 +421,32 @@ export function TraineeDetail() {
           <h1 className="text-xl font-bold text-slate-800">{currentTrainee.full_name}</h1>
           <p className="text-sm text-slate-500">{currentTrainee.email}</p>
         </div>
-        {!isEditing && data && activeTab === 'overview' && (
+        {!isEditing && activeTab === 'overview' && (
           <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setIsPasswordModalOpen(true)}
-              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
-              title="איפוס סיסמה"
-            >
-              <KeyRound size={20} />
-            </button>
-            <button 
-              onClick={handleWhatsAppShare}
-              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
-              title="שתף ב-WhatsApp"
-            >
-              <MessageCircle size={20} />
-            </button>
-            <button 
-              onClick={handleEditClick}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-colors text-sm font-bold"
-            >
-              <Edit2 size={16} /> ערוך
-            </button>
+            {data && (
+              <>
+                <button 
+                  onClick={() => setIsPasswordModalOpen(true)}
+                  className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
+                  title="איפוס סיסמה"
+                >
+                  <KeyRound size={20} />
+                </button>
+                <button 
+                  onClick={handleWhatsAppShare}
+                  className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
+                  title="שתף ב-WhatsApp"
+                >
+                  <MessageCircle size={20} />
+                </button>
+                <button 
+                  onClick={handleEditClick}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-colors text-sm font-bold"
+                >
+                  <Edit2 size={16} /> ערוך
+                </button>
+              </>
+            )}
             <button 
               onClick={() => setIsDeleteModalOpen(true)}
               disabled={isTraineeLoading || isDeleting}
@@ -462,8 +466,20 @@ export function TraineeDetail() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex overflow-x-auto w-full md:w-fit bg-slate-200/50 p-1 rounded-xl mx-auto md:mx-0 snap-x">
+      {!data ? (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-8 text-center space-y-4 shadow-sm mt-8">
+          <AlertCircle size={48} className="text-amber-500 mx-auto" />
+          <h2 className="text-xl font-bold text-amber-800">נתוני מתאמן חסרים (Orphan Record)</h2>
+          <p className="text-amber-700 max-w-md mx-auto">
+            נוצרה שגיאה בתהליך הרישום של מתאמן זה (ככל הנראה תקלה ברשת או הגדרות חסרות) וחלק מהנתונים שלו חסרים. אי אפשר להציג את הפרופיל כראוי.
+            <br/><br/>
+            <strong>אנא מחק מתאמן זה (באמצעות כפתור הפח למעלה) ונסה ליצור אותו מחדש.</strong>
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Tabs */}
+          <div className="flex overflow-x-auto w-full md:w-fit bg-slate-200/50 p-1 rounded-xl mx-auto md:mx-0 snap-x">
         <button
           onClick={() => { setActiveTab('overview'); setIsEditing(false); }}
           className={`whitespace-nowrap flex-shrink-0 snap-start flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
@@ -1293,6 +1309,9 @@ export function TraineeDetail() {
             </div>
           )}
         </div>
+      )}
+
+      </>
       )}
 
       {/* Reset Password Modal */}

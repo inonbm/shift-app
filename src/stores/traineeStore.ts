@@ -138,7 +138,10 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
         auth: { persistSession: false, autoRefreshToken: false }
       });
 
-      // 2. Sign up the new user
+      let newlyCreatedUserId: string | null = null;
+
+      try {
+        // 2. Sign up the new user
       const { data: authData, error: authError } = await authClient.auth.signUp({
         email: input.email,
         password: input.password,
@@ -153,7 +156,8 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
       if (authError) throw authError;
       if (!authData.user) throw new Error('Failed to create user account');
 
-      const traineeId = authData.user.id;
+      newlyCreatedUserId = authData.user.id;
+      const traineeId = newlyCreatedUserId;
 
       // The database trigger auto-creates the profile row, but it may take
       // a few hundred milliseconds to propagate. We MUST wait for it to exist
@@ -249,6 +253,23 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
 
       // 5. Refresh trainee list
       await get().fetchTrainees();
+
+      } catch (innerError) {
+        // Rollback: If anything fails after user creation (or during it if we got an ID),
+        // we must invoke the admin-delete-user edge function to completely remove the auth user
+        // and avoid "orphan" trainees or "User already registered" errors.
+        if (newlyCreatedUserId) {
+          console.log('Rolling back orphaned trainee creation for:', newlyCreatedUserId);
+          try {
+            await supabase.functions.invoke('admin-delete-user', {
+              body: { targetUserId: newlyCreatedUserId }
+            });
+          } catch (rollbackError) {
+            console.error('Failed to rollback orphaned user:', rollbackError);
+          }
+        }
+        throw innerError;
+      }
     } catch (error) {
       console.error('Failed to create trainee:', error);
       set({
