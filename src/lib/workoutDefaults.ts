@@ -59,26 +59,50 @@ export const FULL_BODY_MEN: DefaultProgram = {
 };
 
 export const AB_MEN_ADVANCED_A: DefaultProgram = {
-  name: 'AB Men (Advanced) - Workout A',
+  name: 'AB גברים (מתקדמים) - אימון A',
   exercises: [
-    { exercise_name: 'Bench Press', target_sets: 4, target_reps: 8 },
-    { exercise_name: 'Incline DB Press', target_sets: 3, target_reps: 10 },
-    { exercise_name: 'Squat', target_sets: 4, target_reps: 8 },
-    { exercise_name: 'Leg Extension', target_sets: 3, target_reps: 12 },
-    { exercise_name: 'Barbell Curl', target_sets: 3, target_reps: 10 },
-    { exercise_name: 'Lateral Raises', target_sets: 4, target_reps: 15 },
+    // Chest
+    { focus_area: 'חזה', exercise_name: 'לחיצת חזה עם דאמבלים', target_sets: 3, target_reps: 10 },
+    { focus_area: 'חזה', exercise_name: 'לחיצת חזה בשיפוע חיובי עם דאמבלים', target_sets: 3, target_reps: 10 },
+    { focus_area: 'חזה', exercise_name: 'פרפר בכבלים/כנגד פולי', target_sets: 3, target_reps: 15 },
+
+    // Legs (Quads focus)
+    { focus_area: 'רגליים דגש קוואדס', exercise_name: 'סקוואט בסמית', target_sets: 3, target_reps: 10 },
+    { focus_area: 'רגליים דגש קוואדס', exercise_name: 'פשיטת ברכיים- קוואד', target_sets: 3, target_reps: 12 },
+    { focus_area: 'רגליים דגש קוואדס', exercise_name: 'תאומים במכונה/בסמית', target_sets: 3, target_reps: 15 },
+
+    // Biceps & Shoulders
+    { focus_area: 'יד קדמית+ כתף אמצעית+עליונה', exercise_name: 'כפיפת מרפקים על ספסל בשיפוע', target_sets: 3, target_reps: 12 },
+    { focus_area: 'יד קדמית+ כתף אמצעית+עליונה', exercise_name: 'פטישים עם דאמבלים', target_sets: 3, target_reps: 12 },
+    { focus_area: 'יד קדמית+ כתף אמצעית+עליונה', exercise_name: 'לחיצת כתפיים עם דאמבלים/במכונה', target_sets: 3, target_reps: 10 },
+    { focus_area: 'יד קדמית+ כתף אמצעית+עליונה', exercise_name: 'הרחקת כתף צידית עם דאמבלים', target_sets: 3, target_reps: 15 },
+
+    // Abs
+    { focus_area: 'בטן', exercise_name: 'כפיפות בטן על בוסו', target_sets: 3, target_reps: 20 },
+    { focus_area: 'בטן', exercise_name: 'כפיפות בטן בספסל בשיפוע שלילי', target_sets: 3, target_reps: 15 },
   ]
 };
 
 export const AB_MEN_ADVANCED_B: DefaultProgram = {
-  name: 'AB Men (Advanced) - Workout B',
+  name: 'AB גברים (מתקדמים) - אימון B',
   exercises: [
-    { exercise_name: 'Pull-ups', target_sets: 4, target_reps: 8 },
-    { exercise_name: 'Barbell Row', target_sets: 3, target_reps: 10 },
-    { exercise_name: 'Romanian Deadlift', target_sets: 4, target_reps: 8 },
-    { exercise_name: 'Lying Leg Curl', target_sets: 3, target_reps: 12 },
-    { exercise_name: 'Tricep Extension', target_sets: 3, target_reps: 12 },
-    { exercise_name: 'Calf Raises', target_sets: 4, target_reps: 15 },
+    // Back
+    { focus_area: 'גב', exercise_name: 'פול-דאון אחיזה צרה', target_sets: 3, target_reps: 10 },
+    { focus_area: 'גב', exercise_name: 'חתירה באחיזה צרה בפולי', target_sets: 3, target_reps: 12 },
+
+    // Legs (Hamstrings/Glutes focus)
+    { focus_area: 'רגליים (דגש המסטרינג/ישבן)', exercise_name: 'לאנג\'ים בהליכה', target_sets: 3, target_reps: 20 },
+    { focus_area: 'רגליים (דגש המסטרינג/ישבן)', exercise_name: 'כפיפת ברכיים- המסטרינג', target_sets: 3, target_reps: 12 },
+    { focus_area: 'רגליים (דגש המסטרינג/ישבן)', exercise_name: 'מקרבים', target_sets: 3, target_reps: 15 },
+
+    // Rear Delts & Triceps
+    { focus_area: 'כתף אחורית+ יד אחורית', exercise_name: 'כתף אחורית כנגד פולי/במכונה', target_sets: 3, target_reps: 15 },
+    { focus_area: 'כתף אחורית+ יד אחורית', exercise_name: 'פשיטת מרפקים כנגד פולי', target_sets: 3, target_reps: 15 },
+    { focus_area: 'כתף אחורית+ יד אחורית', exercise_name: 'פשיטת מרפקים מאחורי הראש עם מוט V', target_sets: 3, target_reps: 12 },
+
+    // Abs
+    { focus_area: 'בטן', exercise_name: 'כפיפות בטן על בוסו', target_sets: 3, target_reps: 20 },
+    { focus_area: 'בטן', exercise_name: 'כפיפות בטן בספסל בשיפוע שלילי', target_sets: 3, target_reps: 15 },
   ]
 };
 
