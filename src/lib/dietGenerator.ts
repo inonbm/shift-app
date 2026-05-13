@@ -1,5 +1,12 @@
-import type { Food, GeneratedMeal, MealFoodOption } from '../types';
+import type { Food, GeneratedMeal, MealFoodOption, MealSuitability } from '../types';
 import { MEAL_DISTRIBUTION } from '../types';
+
+const MEAL_SUITABILITY_MAP: Record<number, MealSuitability[]> = {
+  0: ['breakfast', 'snack'],
+  1: ['main_meal'],
+  2: ['snack'],
+  3: ['main_meal']
+};
 
 /**
  * Normalizes all database values dynamically and bounds numbers logically.
@@ -121,6 +128,8 @@ export function generateDietPlan(
   const proteinFoods = sortFoodsByLifestyle(availableFoods.filter(f => f.primary_category === 'protein'));
   const fatFoods = sortFoodsByLifestyle(availableFoods.filter(f => f.primary_category === 'fat'));
 
+  let previousMealFoodIds: string[] = [];
+
   for (const distribution of MEAL_DISTRIBUTION) {
     const p = distribution.percentage;
     
@@ -130,10 +139,39 @@ export function generateDietPlan(
     const T_p = dailyProtein * p * ROUNDING_BIAS_FACTOR;
     const T_f = dailyFat * p * ROUNDING_BIAS_FACTOR;
 
+    // Filter by Category Suitability
+    const allowedTags = MEAL_SUITABILITY_MAP[distribution.index] || [];
+    
+    const filterSuitability = (foods: Food[]) => foods.filter(f => 
+      !f.suitable_for || f.suitable_for.length === 0 || f.suitable_for.some(tag => allowedTags.includes(tag))
+    );
+
+    const filterNoRepetition = (foods: Food[]) => foods.filter(f => !previousMealFoodIds.includes(f.id));
+
+    const getFoodsForMeal = (categoryFoods: Food[]) => {
+      // 1. Double filter: category + no repetition
+      let filtered = filterNoRepetition(filterSuitability(categoryFoods));
+      if (filtered.length >= 4) return filtered;
+
+      // 2. Fallback 1: category only (drop anti-repetition)
+      filtered = filterSuitability(categoryFoods);
+      if (filtered.length >= 4) return filtered;
+
+      // 3. Fallback 2: all foods in category (drop both constraints)
+      return categoryFoods;
+    };
+
     // Pick exactly 4 random foods per category for this meal
-    const selectedCarbFoods = selectRandomUnique(carbFoods, 4);
-    const selectedProteinFoods = selectRandomUnique(proteinFoods, 4);
-    const selectedFatFoods = selectRandomUnique(fatFoods, 4);
+    const selectedCarbFoods = selectRandomUnique(getFoodsForMeal(carbFoods), 4);
+    const selectedProteinFoods = selectRandomUnique(getFoodsForMeal(proteinFoods), 4);
+    const selectedFatFoods = selectRandomUnique(getFoodsForMeal(fatFoods), 4);
+
+    // Update history buffer for the next meal
+    previousMealFoodIds = [
+      ...selectedCarbFoods.map(f => f.id),
+      ...selectedProteinFoods.map(f => f.id),
+      ...selectedFatFoods.map(f => f.id)
+    ];
 
     // ----------------------------------------------------
     // STEP 1: CARBS

@@ -59,6 +59,8 @@ export interface TraineeWithData extends Profile {
   trainee_data: TraineeData | null;
 }
 
+export type MealSuitability = 'breakfast' | 'main_meal' | 'snack';
+
 export interface Food {
   id: string;
   name: string;
@@ -69,6 +71,7 @@ export interface Food {
   protein_per_100g: number;
   carbs_per_100g: number;
   fats_per_100g: number;
+  suitable_for?: MealSuitability[];
   created_by: string;
   created_at: string;
 }
@@ -190,6 +193,7 @@ export interface CreateFoodInput {
   protein_per_100g: number;
   carbs_per_100g: number;
   fats_per_100g: number;
+  suitable_for?: MealSuitability[];
 }
 
 export interface CreateTemplateInput {

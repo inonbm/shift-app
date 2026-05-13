@@ -5,7 +5,7 @@ import { Search, Loader2, AlertCircle, Edit2, Trash2, Plus, Apple, Save, X, Uplo
 import { useFoodStore } from '../../stores/foodStore';
 import { useAuthStore } from '../../stores/authStore';
 import { FOOD_CATEGORY_LABELS, MEASUREMENT_UNIT_LABELS } from '../../types';
-import type { Food, FoodCategory, MeasurementUnit } from '../../types';
+import type { Food, FoodCategory, MeasurementUnit, MealSuitability } from '../../types';
 
 export function FoodsManager() {
   const { profile } = useAuthStore();
@@ -290,6 +290,7 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
     protein_per_100g: 0,
     carbs_per_100g: 0,
     fats_per_100g: 0,
+    suitable_for: ['breakfast', 'main_meal', 'snack'] as MealSuitability[],
   });
 
   useEffect(() => {
@@ -304,6 +305,7 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
           protein_per_100g: food.protein_per_100g,
           carbs_per_100g: food.carbs_per_100g,
           fats_per_100g: food.fats_per_100g,
+          suitable_for: food.suitable_for || ['breakfast', 'main_meal', 'snack'],
         });
       } else {
         setFormData({
@@ -315,6 +317,7 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
           protein_per_100g: 0,
           carbs_per_100g: 0,
           fats_per_100g: 0,
+          suitable_for: ['breakfast', 'main_meal', 'snack'],
         });
       }
       setError(null);
@@ -496,6 +499,54 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
                     className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-left"
                     dir="ltr"
                   />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">מתאים לארוחות</label>
+                <div className="flex gap-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox"
+                      checked={formData.suitable_for.includes('breakfast')}
+                      onChange={(e) => {
+                        const newSuitability = e.target.checked 
+                          ? [...formData.suitable_for, 'breakfast']
+                          : formData.suitable_for.filter(s => s !== 'breakfast');
+                        setFormData(prev => ({ ...prev, suitable_for: newSuitability as MealSuitability[] }));
+                      }}
+                      className="w-4 h-4 text-emerald-500 rounded border-slate-300 focus:ring-emerald-500"
+                    />
+                    <span className="text-sm font-medium text-slate-700">ארוחת בוקר</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox"
+                      checked={formData.suitable_for.includes('main_meal')}
+                      onChange={(e) => {
+                        const newSuitability = e.target.checked 
+                          ? [...formData.suitable_for, 'main_meal']
+                          : formData.suitable_for.filter(s => s !== 'main_meal');
+                        setFormData(prev => ({ ...prev, suitable_for: newSuitability as MealSuitability[] }));
+                      }}
+                      className="w-4 h-4 text-emerald-500 rounded border-slate-300 focus:ring-emerald-500"
+                    />
+                    <span className="text-sm font-medium text-slate-700">ארוחה עיקרית</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox"
+                      checked={formData.suitable_for.includes('snack')}
+                      onChange={(e) => {
+                        const newSuitability = e.target.checked 
+                          ? [...formData.suitable_for, 'snack']
+                          : formData.suitable_for.filter(s => s !== 'snack');
+                        setFormData(prev => ({ ...prev, suitable_for: newSuitability as MealSuitability[] }));
+                      }}
+                      className="w-4 h-4 text-emerald-500 rounded border-slate-300 focus:ring-emerald-500"
+                    />
+                    <span className="text-sm font-medium text-slate-700">ארוחת ביניים</span>
+                  </label>
                 </div>
               </div>
             </div>

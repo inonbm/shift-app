@@ -53,6 +53,7 @@ export const useFoodStore = create<FoodState>((set, get) => ({
           protein_per_100g: food.protein_per_100g,
           carbs_per_100g: food.carbs_per_100g,
           fats_per_100g: food.fats_per_100g,
+          suitable_for: food.suitable_for || ['breakfast', 'main_meal', 'snack'],
           created_by: userData.user.id
         });
 
@@ -80,6 +81,7 @@ export const useFoodStore = create<FoodState>((set, get) => ({
         protein_per_100g: food.protein_per_100g,
         carbs_per_100g: food.carbs_per_100g,
         fats_per_100g: food.fats_per_100g,
+        suitable_for: food.suitable_for || ['breakfast', 'main_meal', 'snack'],
         created_by: userData.user!.id
       }));
 
