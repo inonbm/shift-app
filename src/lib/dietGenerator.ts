@@ -3,9 +3,9 @@ import { MEAL_DISTRIBUTION } from '../types';
 
 const MEAL_SUITABILITY_MAP: Record<number, MealSuitability[]> = {
   0: ['breakfast', 'snack'],
-  1: ['main_meal'],
+  1: ['lunch'],
   2: ['snack'],
-  3: ['main_meal']
+  3: ['dinner']
 };
 
 /**

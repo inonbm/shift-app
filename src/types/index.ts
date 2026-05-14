@@ -59,7 +59,7 @@ export interface TraineeWithData extends Profile {
   trainee_data: TraineeData | null;
 }
 
-export type MealSuitability = 'breakfast' | 'main_meal' | 'snack';
+export type MealSuitability = 'breakfast' | 'lunch' | 'snack' | 'dinner';
 
 export interface Food {
   id: string;
