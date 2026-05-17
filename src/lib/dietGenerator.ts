@@ -26,43 +26,57 @@ function selectRandomUnique<T>(array: T[], count: number): T[] {
 /**
  * Creates up to 4 randomized food options for a specific macronutrient target.
  *
- * IMPORTANT – nutritional values (protein_per_100g, carbs_per_100g, fats_per_100g,
- * calories_per_100g) are ALWAYS stored as grams/kcal per 100 g of food in the
- * database, regardless of the food's serving_size. We therefore ALWAYS divide by 100
- * to get the per-gram ratio. Using serving_size here previously caused extreme
- * quantities (e.g. 1660 g of Quinoa) for unit-based foods (serving_size = 1).
+ * DYNAMIC MACRO REFERENCE DENOMINATOR
+ * ------------------------------------
+ * The DB stores nutritional values relative to food.serving_size:
+ *   - Weight-based foods (measurement_unit = 'g' | 'ml'):
+ *       serving_size is typically 100; values are per 100 g/ml.
+ *       → rawUnits output = grams needed ✓
+ *   - Unit-based foods (measurement_unit = 'unit' | 'slice' | 'scoop' | 'cup' | 'tbsp' | 'tsp'):
+ *       serving_size = 1; values are per ONE unit/slice/scoop.
+ *       → rawUnits output = number of units needed ✓
  *
- * After building the raw options list the function applies two post-processing steps:
- *   1. Fallback  – if no options were produced but a real target exists, insert the
- *      most macro-dense food at a minimum 30 g portion so the column is never empty.
- *   2. Anchor normalization (Issue 4) – the first option acts as the "anchor". All
- *      other options are recalculated so they deliver the EXACT same amount of the
- *      primary macro as the anchor (before display rounding).
+ * Formula:  rawUnits = targetGrams × serving_size / macroPer[serving_size]g
+ *
+ * After building options, two post-processing steps are applied:
+ *   1. Fallback  – guarantee ≥1 item so columns are never empty.
+ *   2. Anchor normalization – all alternatives deliver the exact same primary
+ *      macro as options[0], enabling safe item swapping by the trainee.
+ *      Works correctly across mixed unit/weight alternatives because each food
+ *      uses its own macroRef for the back-calculation.
  */
 function resolveOptions(
   foods: Food[],
   targetGrams: number,
   primaryKey: 'carbs_per_100g' | 'protein_per_100g' | 'fats_per_100g',
-  // Map primaryKey → the corresponding MealFoodOption output field for normalization
   primaryOutputKey: 'carbs_g' | 'protein_g' | 'fat_g'
 ): MealFoodOption[] {
   const options: MealFoodOption[] = [];
-  // Ensure we don't return entirely zeroed options unless target is basically zero
   if (targetGrams <= 1) return options;
 
-  // ── MACRO REFERENCE is always 100 g regardless of serving_size ────────────
-  // The DB columns are named *_per_100g and store values for 100 g of food.
-  const MACRO_REF = 100;
+  /** Unit types whose macros are stored per 100 of that unit (i.e. per 100 g/ml). */
+  const WEIGHT_BASED_UNITS: ReadonlySet<string> = new Set(['g', 'ml']);
+  const isWeightBased = (food: Food) => WEIGHT_BASED_UNITS.has(food.measurement_unit);
 
-  const buildOption = (food: Food, gramsNeeded: number): MealFoodOption => {
-    const protein = (food.protein_per_100g / MACRO_REF) * gramsNeeded;
-    const carbs   = (food.carbs_per_100g   / MACRO_REF) * gramsNeeded;
-    const fat     = (food.fats_per_100g    / MACRO_REF) * gramsNeeded;
-    const kcal    = (food.calories_per_100g / MACRO_REF) * gramsNeeded;
+  /**
+   * The macro reference denominator for a food.
+   * Weight-based: serving_size (usually 100) — macros stored per that many grams.
+   * Unit-based:   serving_size (usually 1)   — macros stored per that many units.
+   * Falls back gracefully if serving_size is missing.
+   */
+  const macroRef = (food: Food): number =>
+    food.serving_size > 0 ? food.serving_size : (isWeightBased(food) ? 100 : 1);
+
+  const buildOption = (food: Food, unitsNeeded: number): MealFoodOption => {
+    const ref = macroRef(food);
+    const protein = (food.protein_per_100g / ref) * unitsNeeded;
+    const carbs   = (food.carbs_per_100g   / ref) * unitsNeeded;
+    const fat     = (food.fats_per_100g    / ref) * unitsNeeded;
+    const kcal    = (food.calories_per_100g / ref) * unitsNeeded;
     return {
       food_id:   food.id,
       food_name: food.name,
-      grams:     Math.round(gramsNeeded),
+      grams:     Math.round(unitsNeeded * 10) / 10, // quantity in g for weight, count for unit
       protein_g: Math.round(protein * 10) / 10,
       carbs_g:   Math.round(carbs   * 10) / 10,
       fat_g:     Math.round(fat     * 10) / 10,
@@ -72,71 +86,78 @@ function resolveOptions(
   };
 
   for (const food of foods) {
-    const macroPer100 = food[primaryKey];
-    if (macroPer100 <= 0) continue;
+    const macroPer = food[primaryKey];
+    if (macroPer <= 0) continue;
 
-    // Grams of this food needed to supply targetGrams of the primary macro
-    const rawGrams = (targetGrams * MACRO_REF) / macroPer100;
+    const ref = macroRef(food);
+    // Units (grams OR item-count) of this food needed to supply targetGrams of macro
+    const rawUnits = (targetGrams * ref) / macroPer;
 
-    // Safety cap – skip foods that would require unrealistic portions
-    if (rawGrams > 1200) continue;
+    // Safety cap — skip unrealistic portions
+    // Weight-based: cap at 1200 g; Unit-based: cap at 20 units
+    const cap = isWeightBased(food) ? 1200 : 20;
+    if (rawUnits > cap) continue;
 
-    // Apply rounding for usability
-    let gramsNeeded: number;
-    if (rawGrams < 20) {
-      gramsNeeded = Math.round(rawGrams);
+    // Round to clean, user-friendly numbers
+    let unitsNeeded: number;
+    if (!isWeightBased(food)) {
+      // Nearest half-unit (1.5 slices of bread is perfectly meaningful)
+      unitsNeeded = Math.round(rawUnits * 2) / 2;
+    } else if (rawUnits < 20) {
+      unitsNeeded = Math.round(rawUnits);
     } else if (food.primary_category === 'fat') {
-      gramsNeeded = Math.round(rawGrams / 5) * 5;
+      unitsNeeded = Math.round(rawUnits / 5) * 5;
     } else {
-      gramsNeeded = Math.round(rawGrams / 10) * 10;
+      unitsNeeded = Math.round(rawUnits / 10) * 10;
     }
 
-    if (gramsNeeded <= 0) continue;
-
-    options.push(buildOption(food, gramsNeeded));
+    if (unitsNeeded <= 0) continue;
+    options.push(buildOption(food, unitsNeeded));
   }
 
   // ── FALLBACK: guarantee at least one item ──────────────────────────────────
   if (options.length === 0 && foods.length > 0) {
-    // Pick the food with the highest density for the primary macro
     const bestFood = foods
       .filter(f => f[primaryKey] > 0)
       .sort((a, b) => b[primaryKey] - a[primaryKey])[0];
     if (bestFood) {
-      const rawGrams = (targetGrams * MACRO_REF) / bestFood[primaryKey];
-      const gramsNeeded = Math.max(30, Math.round(rawGrams / 10) * 10);
-      options.push(buildOption(bestFood, gramsNeeded));
+      const ref = macroRef(bestFood);
+      const rawUnits = (targetGrams * ref) / bestFood[primaryKey];
+      const unitsNeeded = isWeightBased(bestFood)
+        ? Math.max(30, Math.round(rawUnits / 10) * 10)
+        : Math.max(1, Math.round(rawUnits * 2) / 2);
+      options.push(buildOption(bestFood, unitsNeeded));
     }
   }
 
-  // ── ANCHOR NORMALIZATION (Issue 4): macro equivalency across alternatives ──
-  // All alternatives must deliver the exact same primary-macro grams as the
-  // anchor (options[0]) so a trainee can freely swap items without changing
-  // their macro targets.
+  // ── ANCHOR NORMALIZATION: macro equivalency across all alternatives ─────────
+  // Back-calculate units for each non-anchor option so it delivers exactly the
+  // same primary-macro amount as options[0]. Mixed weight/unit columns work
+  // correctly because each food uses its own macroRef.
   if (options.length > 1) {
-    const anchorMacroAmount = options[0][primaryOutputKey]; // e.g. 25.0 g protein
+    const anchorMacroAmount = options[0][primaryOutputKey];
 
     for (let i = 1; i < options.length; i++) {
-      const opt = options[i];
-      const food = foods.find(f => f.id === opt.food_id);
+      const food = foods.find(f => f.id === options[i].food_id);
       if (!food || food[primaryKey] <= 0) continue;
 
-      // Exact grams needed to match anchor's primary macro
-      const exactGrams = (anchorMacroAmount * MACRO_REF) / food[primaryKey];
+      const ref = macroRef(food);
+      const exactUnits = (anchorMacroAmount * ref) / food[primaryKey];
 
-      // Apply same rounding logic for a clean number
-      let normalizedGrams: number;
-      if (exactGrams < 20) {
-        normalizedGrams = Math.round(exactGrams);
+      let normalizedUnits: number;
+      if (!isWeightBased(food)) {
+        normalizedUnits = Math.round(exactUnits * 2) / 2;
+      } else if (exactUnits < 20) {
+        normalizedUnits = Math.round(exactUnits);
       } else if (food.primary_category === 'fat') {
-        normalizedGrams = Math.round(exactGrams / 5) * 5;
+        normalizedUnits = Math.round(exactUnits / 5) * 5;
       } else {
-        normalizedGrams = Math.round(exactGrams / 10) * 10;
+        normalizedUnits = Math.round(exactUnits / 10) * 10;
       }
-      if (normalizedGrams <= 0) continue;
+      if (normalizedUnits <= 0) continue;
 
-      options[i] = buildOption(food, normalizedGrams);
-      // Force exact primary macro to match anchor (eliminate floating-point drift)
+      options[i] = buildOption(food, normalizedUnits);
+      // Pin to anchor to eliminate floating-point drift
       options[i][primaryOutputKey] = anchorMacroAmount;
     }
   }
