@@ -24,33 +24,65 @@ function selectRandomUnique<T>(array: T[], count: number): T[] {
 }
 
 /**
- * Creates 4 randomized food options for a specific macronutrient target,
- * accounting for the sequential cross-macro logic.
+ * Creates up to 4 randomized food options for a specific macronutrient target.
+ *
+ * IMPORTANT – nutritional values (protein_per_100g, carbs_per_100g, fats_per_100g,
+ * calories_per_100g) are ALWAYS stored as grams/kcal per 100 g of food in the
+ * database, regardless of the food's serving_size. We therefore ALWAYS divide by 100
+ * to get the per-gram ratio. Using serving_size here previously caused extreme
+ * quantities (e.g. 1660 g of Quinoa) for unit-based foods (serving_size = 1).
+ *
+ * After building the raw options list the function applies two post-processing steps:
+ *   1. Fallback  – if no options were produced but a real target exists, insert the
+ *      most macro-dense food at a minimum 30 g portion so the column is never empty.
+ *   2. Anchor normalization (Issue 4) – the first option acts as the "anchor". All
+ *      other options are recalculated so they deliver the EXACT same amount of the
+ *      primary macro as the anchor (before display rounding).
  */
 function resolveOptions(
-  foods: Food[], 
-  targetGrams: number, 
-  primaryKey: 'carbs_per_100g' | 'protein_per_100g' | 'fats_per_100g'
+  foods: Food[],
+  targetGrams: number,
+  primaryKey: 'carbs_per_100g' | 'protein_per_100g' | 'fats_per_100g',
+  // Map primaryKey → the corresponding MealFoodOption output field for normalization
+  primaryOutputKey: 'carbs_g' | 'protein_g' | 'fat_g'
 ): MealFoodOption[] {
   const options: MealFoodOption[] = [];
   // Ensure we don't return entirely zeroed options unless target is basically zero
   if (targetGrams <= 1) return options;
 
+  // ── MACRO REFERENCE is always 100 g regardless of serving_size ────────────
+  // The DB columns are named *_per_100g and store values for 100 g of food.
+  const MACRO_REF = 100;
+
+  const buildOption = (food: Food, gramsNeeded: number): MealFoodOption => {
+    const protein = (food.protein_per_100g / MACRO_REF) * gramsNeeded;
+    const carbs   = (food.carbs_per_100g   / MACRO_REF) * gramsNeeded;
+    const fat     = (food.fats_per_100g    / MACRO_REF) * gramsNeeded;
+    const kcal    = (food.calories_per_100g / MACRO_REF) * gramsNeeded;
+    return {
+      food_id:   food.id,
+      food_name: food.name,
+      grams:     Math.round(gramsNeeded),
+      protein_g: Math.round(protein * 10) / 10,
+      carbs_g:   Math.round(carbs   * 10) / 10,
+      fat_g:     Math.round(fat     * 10) / 10,
+      calories:  Math.round(kcal),
+      unit:      food.measurement_unit,
+    };
+  };
+
   for (const food of foods) {
     const macroPer100 = food[primaryKey];
     if (macroPer100 <= 0) continue;
 
-    const referenceWeight = food.serving_size || 100;
-    
-    // e.g. T_carb = 50g. Oats have 66g carbs per serving (e.g., 100g).
-    // Grams needed = 50 / (0.66) = ~75.7g of Oats
-    let rawGrams = targetGrams / (macroPer100 / referenceWeight);
-    
-    // Safety check in case of anomalous math
-    if (rawGrams > 2000) continue; // prevents suggesting 2kg of spinach for carbs
+    // Grams of this food needed to supply targetGrams of the primary macro
+    const rawGrams = (targetGrams * MACRO_REF) / macroPer100;
 
-    // Apply Rounding Logic
-    let gramsNeeded = rawGrams;
+    // Safety cap – skip foods that would require unrealistic portions
+    if (rawGrams > 1200) continue;
+
+    // Apply rounding for usability
+    let gramsNeeded: number;
     if (rawGrams < 20) {
       gramsNeeded = Math.round(rawGrams);
     } else if (food.primary_category === 'fat') {
@@ -61,22 +93,52 @@ function resolveOptions(
 
     if (gramsNeeded <= 0) continue;
 
-    // Recalculate macros based on the rounded grams
-    const protein = (food.protein_per_100g / referenceWeight) * gramsNeeded;
-    const carbs = (food.carbs_per_100g / referenceWeight) * gramsNeeded;
-    const fat = (food.fats_per_100g / referenceWeight) * gramsNeeded;
-    const kcal = (food.calories_per_100g / referenceWeight) * gramsNeeded;
+    options.push(buildOption(food, gramsNeeded));
+  }
 
-    options.push({
-      food_id: food.id,
-      food_name: food.name,
-      grams: gramsNeeded,
-      protein_g: Math.round(protein * 10) / 10,
-      carbs_g: Math.round(carbs * 10) / 10,
-      fat_g: Math.round(fat * 10) / 10,
-      calories: Math.round(kcal),
-      unit: food.measurement_unit
-    });
+  // ── FALLBACK: guarantee at least one item ──────────────────────────────────
+  if (options.length === 0 && foods.length > 0) {
+    // Pick the food with the highest density for the primary macro
+    const bestFood = foods
+      .filter(f => f[primaryKey] > 0)
+      .sort((a, b) => b[primaryKey] - a[primaryKey])[0];
+    if (bestFood) {
+      const rawGrams = (targetGrams * MACRO_REF) / bestFood[primaryKey];
+      const gramsNeeded = Math.max(30, Math.round(rawGrams / 10) * 10);
+      options.push(buildOption(bestFood, gramsNeeded));
+    }
+  }
+
+  // ── ANCHOR NORMALIZATION (Issue 4): macro equivalency across alternatives ──
+  // All alternatives must deliver the exact same primary-macro grams as the
+  // anchor (options[0]) so a trainee can freely swap items without changing
+  // their macro targets.
+  if (options.length > 1) {
+    const anchorMacroAmount = options[0][primaryOutputKey]; // e.g. 25.0 g protein
+
+    for (let i = 1; i < options.length; i++) {
+      const opt = options[i];
+      const food = foods.find(f => f.id === opt.food_id);
+      if (!food || food[primaryKey] <= 0) continue;
+
+      // Exact grams needed to match anchor's primary macro
+      const exactGrams = (anchorMacroAmount * MACRO_REF) / food[primaryKey];
+
+      // Apply same rounding logic for a clean number
+      let normalizedGrams: number;
+      if (exactGrams < 20) {
+        normalizedGrams = Math.round(exactGrams);
+      } else if (food.primary_category === 'fat') {
+        normalizedGrams = Math.round(exactGrams / 5) * 5;
+      } else {
+        normalizedGrams = Math.round(exactGrams / 10) * 10;
+      }
+      if (normalizedGrams <= 0) continue;
+
+      options[i] = buildOption(food, normalizedGrams);
+      // Force exact primary macro to match anchor (eliminate floating-point drift)
+      options[i][primaryOutputKey] = anchorMacroAmount;
+    }
   }
 
   return options;
@@ -176,7 +238,7 @@ export function generateDietPlan(
     // ----------------------------------------------------
     // STEP 1: CARBS
     // ----------------------------------------------------
-    const carbOptions = resolveOptions(selectedCarbFoods, T_c, 'carbs_per_100g');
+    const carbOptions = resolveOptions(selectedCarbFoods, T_c, 'carbs_per_100g', 'carbs_g');
     
     // Get median cross-macros from carb options to predict deduction
     // (We average it out because the UI lets the user pick ANY carb option, 
@@ -188,7 +250,7 @@ export function generateDietPlan(
     // STEP 2: PROTEIN
     // ----------------------------------------------------
     const R_p = clamp(T_p - avgCarbProtein); // Remaining protein after carbs
-    const proteinOptions = resolveOptions(selectedProteinFoods, R_p, 'protein_per_100g');
+    const proteinOptions = resolveOptions(selectedProteinFoods, R_p, 'protein_per_100g', 'protein_g');
 
     const avgProteinFat = proteinOptions.reduce((acc, obj) => acc + obj.fat_g, 0) / (proteinOptions.length || 1);
 
@@ -196,7 +258,7 @@ export function generateDietPlan(
     // STEP 3: FATS
     // ----------------------------------------------------
     const R_f = clamp(T_f - avgCarbFat - avgProteinFat); // Remaining fat after carbs & protein
-    const fatOptions = resolveOptions(selectedFatFoods, R_f, 'fats_per_100g');
+    const fatOptions = resolveOptions(selectedFatFoods, R_f, 'fats_per_100g', 'fat_g');
 
     // ----------------------------------------------------
     // STEP 4: RECALCULATE MEAL TARGETS

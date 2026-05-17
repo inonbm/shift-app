@@ -351,7 +351,17 @@ export function TraineeDetail() {
   const handleSaveMenu = async () => {
     setIsSavingMenu(true);
     try {
-      const updates = Object.entries(menuEdits).map(([mealId, fields]) => {
+      // Re-run totals calculation on the live menuEdits state right before saving.
+      // This guarantees the DB receives fresh target_calories/protein/carbs/fat
+      // values even if React batched any intermediate state updates.
+      const freshEdits = { ...menuEdits };
+      Object.keys(freshEdits).forEach(mealId => {
+        const meal = freshEdits[mealId];
+        const [recalculated] = recalculateDietTotals([meal]);
+        freshEdits[mealId] = recalculated;
+      });
+
+      const updates = Object.entries(freshEdits).map(([mealId, fields]) => {
         return supabase
           .from('generated_meals')
           .update({
@@ -359,14 +369,19 @@ export function TraineeDetail() {
             protein_options: fields.protein_options,
             carb_options: fields.carb_options,
             fat_options: fields.fat_options,
-            target_calories: fields.target_calories || 0,
-            target_protein: fields.target_protein || 0,
-            target_carbs: fields.target_carbs || 0,
-            target_fat: fields.target_fat || 0,
+            target_calories: fields.target_calories ?? 0,
+            target_protein: fields.target_protein ?? 0,
+            target_carbs: fields.target_carbs ?? 0,
+            target_fat: fields.target_fat ?? 0,
           })
           .eq('id', mealId);
       });
       await Promise.all(updates);
+
+      // Optimistically update local state with the freshly-computed edits so
+      // the UI stays in sync while the DB fetch completes.
+      setMenuEdits(freshEdits);
+
       if (id) await fetchDiet(id);
       setIsEditingMenu(false);
     } catch (err) {
@@ -375,6 +390,7 @@ export function TraineeDetail() {
       setIsSavingMenu(false);
     }
   };
+
 
   // Helper: filter foods by category for the dropdown
   const getFoodsByCategory = (category: 'protein_options' | 'carb_options' | 'fat_options', mealId: string) => {
