@@ -67,6 +67,69 @@ function resolveOptions(
   const macroRef = (food: Food): number =>
     food.serving_size > 0 ? food.serving_size : (isWeightBased(food) ? 100 : 1);
 
+  /**
+   * Returns true for unit-based foods that cannot meaningfully be split into
+   * halves — e.g. an egg, a yogurt cup, a protein drink, a bottle.
+   * These must be rounded to the nearest WHOLE INTEGER.
+   *
+   * Returns false for "divisible" items like bread slices, pita, or tortillas,
+   * where 1.5 units is a perfectly normal serving.
+   */
+  const INDIVISIBLE_KEYWORDS = [
+    'ביצה', 'ביצים',          // egg / eggs
+    'יוגורט',                  // yogurt
+    'משקה',                    // drink
+    'בקבוק',                   // bottle
+    'מעדן',                    // pudding / dairy dessert
+    'שייק',                    // shake
+    'גביע',                    // cup/tub (yogurt tub)
+    'אמפולה',                  // ampoule / shot
+    'שקית',                    // sachet / bag
+  ];
+  // Divisible items explicitly allowed to keep 0.5 rounding
+  const DIVISIBLE_KEYWORDS = [
+    'פרוסה', 'פרוסת',          // slice(s)
+    'פיתה', 'פיות',            // pita
+    'טורטיה', 'טורטייה',       // tortilla
+    'לחמניה', 'לחמניות',       // bun(s)
+    'קרואסון',                  // croissant
+    'ואפל',                    // waffle
+  ];
+
+  /**
+   * Checks whether a food should be rounded to whole integers only.
+   * Priority: if ANY divisible keyword matches → allow halves.
+   * Otherwise: if ANY indivisible keyword matches → whole only.
+   * Default (no match): whole integer (conservative for unknown unit items).
+   */
+  const isIndivisibleUnit = (food: Food): boolean => {
+    if (isWeightBased(food)) return false; // weight-based always uses gram rounding
+    const lc = food.name.toLowerCase();
+    if (DIVISIBLE_KEYWORDS.some(kw => lc.includes(kw.toLowerCase()))) return false;
+    if (INDIVISIBLE_KEYWORDS.some(kw => lc.includes(kw.toLowerCase()))) return true;
+    // Conservative default for unrecognised unit items: whole integers
+    return true;
+  };
+
+  /**
+   * Rounds a raw unit quantity to the most user-friendly value:
+   *   - Weight-based & < 20 g  → nearest integer
+   *   - Weight-based fat       → nearest 5 g
+   *   - Weight-based other     → nearest 10 g
+   *   - Unit indivisible       → nearest whole integer
+   *   - Unit divisible         → nearest 0.5
+   */
+  const roundUnitQuantity = (food: Food, rawUnits: number): number => {
+    if (!isWeightBased(food)) {
+      return isIndivisibleUnit(food)
+        ? Math.round(rawUnits)               // whole eggs, whole yogurts…
+        : Math.round(rawUnits * 2) / 2;      // half-slices of bread, pita…
+    }
+    if (rawUnits < 20)                       return Math.round(rawUnits);
+    if (food.primary_category === 'fat')     return Math.round(rawUnits / 5) * 5;
+    return Math.round(rawUnits / 10) * 10;
+  };
+
   const buildOption = (food: Food, unitsNeeded: number): MealFoodOption => {
     const ref = macroRef(food);
     const protein = (food.protein_per_100g / ref) * unitsNeeded;
@@ -98,18 +161,8 @@ function resolveOptions(
     const cap = isWeightBased(food) ? 1200 : 20;
     if (rawUnits > cap) continue;
 
-    // Round to clean, user-friendly numbers
-    let unitsNeeded: number;
-    if (!isWeightBased(food)) {
-      // Nearest half-unit (1.5 slices of bread is perfectly meaningful)
-      unitsNeeded = Math.round(rawUnits * 2) / 2;
-    } else if (rawUnits < 20) {
-      unitsNeeded = Math.round(rawUnits);
-    } else if (food.primary_category === 'fat') {
-      unitsNeeded = Math.round(rawUnits / 5) * 5;
-    } else {
-      unitsNeeded = Math.round(rawUnits / 10) * 10;
-    }
+    // Round to clean, user-friendly numbers via the unified helper
+    const unitsNeeded = roundUnitQuantity(food, rawUnits);
 
     if (unitsNeeded <= 0) continue;
     options.push(buildOption(food, unitsNeeded));
@@ -123,9 +176,10 @@ function resolveOptions(
     if (bestFood) {
       const ref = macroRef(bestFood);
       const rawUnits = (targetGrams * ref) / bestFood[primaryKey];
+      const rounded = roundUnitQuantity(bestFood, rawUnits);
       const unitsNeeded = isWeightBased(bestFood)
-        ? Math.max(30, Math.round(rawUnits / 10) * 10)
-        : Math.max(1, Math.round(rawUnits * 2) / 2);
+        ? Math.max(30, rounded)
+        : Math.max(1, rounded);
       options.push(buildOption(bestFood, unitsNeeded));
     }
   }
@@ -144,16 +198,7 @@ function resolveOptions(
       const ref = macroRef(food);
       const exactUnits = (anchorMacroAmount * ref) / food[primaryKey];
 
-      let normalizedUnits: number;
-      if (!isWeightBased(food)) {
-        normalizedUnits = Math.round(exactUnits * 2) / 2;
-      } else if (exactUnits < 20) {
-        normalizedUnits = Math.round(exactUnits);
-      } else if (food.primary_category === 'fat') {
-        normalizedUnits = Math.round(exactUnits / 5) * 5;
-      } else {
-        normalizedUnits = Math.round(exactUnits / 10) * 10;
-      }
+      const normalizedUnits = roundUnitQuantity(food, exactUnits);
       if (normalizedUnits <= 0) continue;
 
       options[i] = buildOption(food, normalizedUnits);
