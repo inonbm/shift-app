@@ -20,7 +20,7 @@ export function Header() {
           to="/"
           className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
         >
-          <img src={shiftLogo} alt="SHIFT" className="h-10 w-auto" />
+          <img src={shiftLogo} alt="SHIFT" className="h-14 w-auto" />
         </Link>
 
         {/* Hamburger Menu Toggle (Mobile Only) */}

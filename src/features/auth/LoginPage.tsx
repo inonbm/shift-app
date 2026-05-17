@@ -54,7 +54,7 @@ export function LoginPage() {
     <div dir="rtl" className="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col items-center justify-center p-4">
       {/* SHIFT Logo & Branding */}
       <div className="mb-8 text-center flex flex-col items-center">
-        <img src={shiftLogo} alt="SHIFT Logo" className="h-24 w-auto mb-1" />
+        <img src={shiftLogo} alt="SHIFT Logo" className="h-44 w-auto mb-1" />
       </div>
 
       {/* Login Card */}
