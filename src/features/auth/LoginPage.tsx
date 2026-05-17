@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
-import shiftLogo from '../../assets/shift-logo.svg';
+import shiftLogo from '../../assets/shift-logo.jpeg';
 import { useAuthStore } from '../../stores/authStore';
 
 export function LoginPage() {

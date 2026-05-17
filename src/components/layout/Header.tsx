@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LogOut, Utensils, Dumbbell, ShieldAlert, Apple, Menu, X } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
-import shiftLogo from '../../assets/shift-logo.svg';
+import shiftLogo from '../../assets/shift-logo.jpeg';
 
 export function Header() {
   const { user, profile, signOut } = useAuthStore();
