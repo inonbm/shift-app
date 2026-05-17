@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
+import { Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
+import shiftLogo from '../../assets/shift-logo.svg';
 import { useAuthStore } from '../../stores/authStore';
 
 export function LoginPage() {
@@ -53,11 +54,7 @@ export function LoginPage() {
     <div dir="rtl" className="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col items-center justify-center p-4">
       {/* SHIFT Logo & Branding */}
       <div className="mb-8 text-center flex flex-col items-center">
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <Activity className="text-emerald-500" size={40} strokeWidth={2.5} />
-          <h1 className="text-5xl md:text-6xl font-extrabold text-[#4A235A] tracking-wider">SHIFT</h1>
-        </div>
-        <p className="text-purple-800/70 text-base md:text-lg font-medium tracking-wide">שינוי אמיתי מבפנים החוצה</p>
+        <img src={shiftLogo} alt="SHIFT Logo" className="h-24 w-auto mb-1" />
       </div>
 
       {/* Login Card */}

@@ -41,6 +41,7 @@ interface WorkoutState {
   
   fetchHistory: () => Promise<void>;
   logSession: (input: LogSessionInput) => Promise<void>;
+  updateSession: (sessionId: string, input: { notes?: string; sets: LogSessionInput['sets'] }) => Promise<void>;
   
   deleteTemplate: (templateId: string) => Promise<void>;
   updateExercise: (exerciseId: string, updates: Partial<TemplateExercise>) => Promise<void>;
@@ -184,6 +185,50 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       set({
         isLoading: false,
         error: error instanceof Error ? error.message : 'שגיאה בשמירת האימון'
+      });
+      throw error;
+    }
+  },
+
+  updateSession: async (sessionId: string, input: { notes?: string; sets: LogSessionInput['sets'] }) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      // 1. Update session notes
+      const { error: sessionError } = await supabase
+        .from('workout_sessions')
+        .update({ notes: input.notes })
+        .eq('id', sessionId);
+
+      if (sessionError) throw sessionError;
+
+      // 2. Delete existing sets and re-insert
+      const { error: deleteError } = await supabase
+        .from('session_sets')
+        .delete()
+        .eq('session_id', sessionId);
+
+      if (deleteError) throw deleteError;
+
+      if (input.sets.length > 0) {
+        const setsToInsert = input.sets.map(s => ({
+          ...s,
+          session_id: sessionId
+        }));
+
+        const { error: setsError } = await supabase
+          .from('session_sets')
+          .insert(setsToInsert);
+
+        if (setsError) throw setsError;
+      }
+
+      await get().fetchHistory();
+    } catch (error) {
+      console.error('Failed to update session:', error);
+      set({
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'שגיאה בעדכון האימון'
       });
       throw error;
     }

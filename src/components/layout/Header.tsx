@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Activity, LogOut, Utensils, Dumbbell, ShieldAlert, Apple, Menu, X } from 'lucide-react';
+import { LogOut, Utensils, Dumbbell, ShieldAlert, Apple, Menu, X } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import shiftLogo from '../../assets/shift-logo.svg';
 
 export function Header() {
   const { user, profile, signOut } = useAuthStore();
@@ -15,12 +16,11 @@ export function Header() {
       <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
         
         {/* Logo */}
-        <Link 
-          to="/" 
+        <Link
+          to="/"
           className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
         >
-          <Activity className="text-emerald-500" size={28} strokeWidth={2.5} />
-          <h1 className="text-2xl font-extrabold text-[#4A235A] tracking-wider mt-1">SHIFT</h1>
+          <img src={shiftLogo} alt="SHIFT" className="h-10 w-auto" />
         </Link>
 
         {/* Hamburger Menu Toggle (Mobile Only) */}

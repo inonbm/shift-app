@@ -1,8 +1,322 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Clock, Loader2, Play } from 'lucide-react';
+import { Dumbbell, Clock, Loader2, Play, Edit2, X, Save, AlertCircle, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useWorkoutStore } from '../../stores/workoutStore';
 import { useAuthStore } from '../../stores/authStore';
+import type { WorkoutSession, SessionSet, WorkoutTemplate, TemplateExercise } from '../../types';
+
+// ─── Edit Session Modal ───────────────────────────────────────────────────────
+
+interface EditSessionModalProps {
+  session: WorkoutSession & { sets: SessionSet[] };
+  template: (WorkoutTemplate & { exercises: TemplateExercise[] }) | undefined;
+  onClose: () => void;
+}
+
+function EditSessionModal({ session, template, onClose }: EditSessionModalProps) {
+  const { updateSession, isLoading, error } = useWorkoutStore();
+  const [notes, setNotes] = useState(session.notes || '');
+  const [setsData, setSetsData] = useState<Record<string, Record<number, { reps: number; weight: number; isDone: boolean }>>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Initialize sets from existing session data
+  useEffect(() => {
+    if (!template) return;
+
+    const initialData: typeof setsData = {};
+
+    template.exercises.forEach(ex => {
+      initialData[ex.id] = {};
+      for (let i = 1; i <= ex.target_sets; i++) {
+        const existingSet = session.sets.find(s => s.exercise_id === ex.id && s.set_number === i);
+        initialData[ex.id][i] = {
+          reps: existingSet ? existingSet.reps_done : ex.target_reps,
+          weight: existingSet ? existingSet.weight_kg : 0,
+          isDone: !!existingSet,
+        };
+      }
+    });
+
+    setSetsData(initialData);
+  }, [template, session.sets]);
+
+  const handleSetChange = (exerciseId: string, setNum: number, field: 'reps' | 'weight', value: string) => {
+    const numValue = value === '' ? 0 : parseFloat(value);
+    setSetsData(prev => ({
+      ...prev,
+      [exerciseId]: {
+        ...prev[exerciseId],
+        [setNum]: {
+          ...prev[exerciseId]?.[setNum],
+          [field]: numValue
+        }
+      }
+    }));
+  };
+
+  const toggleSetDone = (exerciseId: string, setNum: number) => {
+    setSetsData(prev => ({
+      ...prev,
+      [exerciseId]: {
+        ...prev[exerciseId],
+        [setNum]: {
+          ...prev[exerciseId]?.[setNum],
+          isDone: !prev[exerciseId]?.[setNum]?.isDone
+        }
+      }
+    }));
+  };
+
+  const handleSave = async () => {
+    setSubmitError(null);
+
+    const finalSets: { exercise_id: string; set_number: number; reps_done: number; weight_kg: number }[] = [];
+    Object.entries(setsData).forEach(([exId, setsObj]) => {
+      Object.entries(setsObj).forEach(([setNumStr, data]) => {
+        if (data.isDone) {
+          finalSets.push({
+            exercise_id: exId,
+            set_number: parseInt(setNumStr),
+            reps_done: data.reps,
+            weight_kg: data.weight
+          });
+        }
+      });
+    });
+
+    if (finalSets.length === 0) {
+      setSubmitError('יש לאשר לפחות סט אחד.');
+      return;
+    }
+
+    try {
+      await updateSession(session.id, { notes, sets: finalSets });
+      onClose();
+    } catch {
+      setSubmitError('שגיאה בשמירת השינויים. נסה שוב.');
+    }
+  };
+
+  const sortedExercises = template?.exercises.sort((a, b) => a.order_index - b.order_index) || [];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" dir="rtl">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Modal Header */}
+        <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50 flex-shrink-0">
+          <div className="flex items-center gap-2 text-slate-800 font-bold">
+            <Edit2 size={18} className="text-purple-500" />
+            עריכת אימון
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 p-1 rounded-lg transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="overflow-y-auto flex-1 p-4 space-y-4">
+          {(submitError || error) && (
+            <div className="bg-red-50 text-red-700 p-3 rounded-xl text-sm flex items-start gap-2 border border-red-100">
+              <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+              <p>{submitError || error}</p>
+            </div>
+          )}
+
+          {/* Exercises */}
+          {sortedExercises.map(ex => (
+            <div key={ex.id} className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+              <div className="px-4 py-2.5 bg-white border-b border-slate-100">
+                <h4 className="font-bold text-slate-800 text-sm">{ex.exercise_name}</h4>
+                <p className="text-xs text-slate-500 mt-0.5">יעד: {ex.target_sets} סטים × {ex.target_reps} חזרות</p>
+              </div>
+              <div className="p-3 space-y-2">
+                <div className="grid grid-cols-[28px_1fr_1fr_36px] gap-2 px-1 text-xs font-bold text-slate-400 text-center">
+                  <div>סט</div>
+                  <div>משקל (ק״ג)</div>
+                  <div>חזרות</div>
+                  <div></div>
+                </div>
+                {Array.from({ length: ex.target_sets }).map((_, i) => {
+                  const setNum = i + 1;
+                  const setData = setsData[ex.id]?.[setNum];
+                  const isDone = setData?.isDone || false;
+
+                  return (
+                    <div
+                      key={setNum}
+                      className={`grid grid-cols-[28px_1fr_1fr_36px] gap-2 items-center p-2 rounded-xl border transition-all ${
+                        isDone ? 'bg-emerald-50/60 border-emerald-200' : 'bg-white border-slate-200'
+                      }`}
+                    >
+                      <div className="text-center font-bold text-slate-500 text-sm">{setNum}</div>
+
+                      <input
+                        type="number"
+                        value={setData?.weight ?? ''}
+                        onChange={e => handleSetChange(ex.id, setNum, 'weight', e.target.value)}
+                        placeholder="0"
+                        className={`w-full text-center py-1.5 rounded-lg font-mono font-bold text-sm outline-none transition-all ${
+                          isDone
+                            ? 'bg-transparent text-emerald-700'
+                            : 'bg-slate-50 border border-slate-200 focus:border-purple-400 focus:ring-1 focus:ring-purple-300'
+                        }`}
+                      />
+
+                      <input
+                        type="number"
+                        value={setData?.reps ?? ''}
+                        onChange={e => handleSetChange(ex.id, setNum, 'reps', e.target.value)}
+                        className={`w-full text-center py-1.5 rounded-lg font-mono font-bold text-sm outline-none transition-all ${
+                          isDone
+                            ? 'bg-transparent text-emerald-700'
+                            : 'bg-slate-50 border border-slate-200 focus:border-purple-400 focus:ring-1 focus:ring-purple-300'
+                        }`}
+                      />
+
+                      <button
+                        onClick={() => toggleSetDone(ex.id, setNum)}
+                        className={`w-full h-full flex items-center justify-center rounded-lg transition-all ${
+                          isDone
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-slate-100 text-slate-400 hover:bg-emerald-100 hover:text-emerald-500'
+                        }`}
+                      >
+                        <CheckCircle2 size={20} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* Notes */}
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">הערות</label>
+            <textarea
+              rows={3}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="הערות לאימון..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-colors text-sm"
+            />
+          </div>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="flex gap-3 p-4 border-t border-slate-100 flex-shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isLoading}
+            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-2.5 rounded-xl font-bold transition-colors"
+          >
+            ביטול
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isLoading}
+            className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-xl font-bold transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-70"
+          >
+            {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+            שמור שינויים
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Session Card ─────────────────────────────────────────────────────────────
+
+interface SessionCardProps {
+  session: WorkoutSession & { sets: SessionSet[] };
+  templateName: string;
+  template: (WorkoutTemplate & { exercises: TemplateExercise[] }) | undefined;
+}
+
+function SessionCard({ session, templateName, template }: SessionCardProps) {
+  const [editOpen, setEditOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const dateObj = new Date(session.performed_at);
+
+  return (
+    <>
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100">
+        {/* Main row */}
+        <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-slate-800 text-lg">{templateName}</h3>
+            <p className="text-sm text-slate-500 flex items-center gap-2 mt-0.5">
+              {dateObj.toLocaleDateString('he-IL')} בשעה{' '}
+              {dateObj.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 text-sm font-medium text-slate-600">
+              סך הכל סטים: <span className="font-bold text-slate-800">{session.sets?.length || 0}</span>
+            </div>
+            <button
+              onClick={() => setExpanded(v => !v)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg text-sm font-bold transition-colors"
+            >
+              {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              {expanded ? 'הסתר' : 'פרטים'}
+            </button>
+            <button
+              onClick={() => setEditOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg text-sm font-bold transition-colors"
+            >
+              <Edit2 size={14} />
+              ערוך
+            </button>
+          </div>
+        </div>
+
+        {/* Expanded details */}
+        {expanded && session.sets.length > 0 && (
+          <div className="border-t border-slate-100 px-4 py-3 space-y-2">
+            {session.sets
+              .slice()
+              .sort((a, b) => a.set_number - b.set_number)
+              .map(s => {
+                const exName = template?.exercises.find(e => e.id === s.exercise_id)?.exercise_name || 'תרגיל';
+                return (
+                  <div
+                    key={s.id}
+                    className="flex items-center gap-3 text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-lg"
+                  >
+                    <span className="font-bold text-slate-800 min-w-[90px]">{exName}</span>
+                    <span className="text-slate-400">סט {s.set_number}</span>
+                    <span className="font-mono font-bold text-emerald-700">{s.weight_kg} ק״ג</span>
+                    <span className="text-slate-400">×</span>
+                    <span className="font-mono font-bold text-slate-800">{s.reps_done} חזרות</span>
+                  </div>
+                );
+              })}
+            {session.notes && (
+              <p className="text-xs text-slate-500 italic pt-1">הערות: {session.notes}</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {editOpen && (
+        <EditSessionModal
+          session={session}
+          template={template}
+          onClose={() => setEditOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
+// ─── WorkoutHub ───────────────────────────────────────────────────────────────
 
 export function WorkoutHub() {
   const navigate = useNavigate();
@@ -16,7 +330,7 @@ export function WorkoutHub() {
     }
   }, [user?.id, fetchTemplates, fetchHistory]);
 
-  if (isLoading) {
+  if (isLoading && sessions.length === 0 && templates.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-purple-600">
         <Loader2 size={40} className="animate-spin mb-4" />
@@ -27,7 +341,7 @@ export function WorkoutHub() {
 
   return (
     <div className="space-y-8 pb-12">
-      
+
       {/* Templates Section */}
       <section>
         <div className="flex items-center gap-3 mb-4 px-1">
@@ -51,8 +365,8 @@ export function WorkoutHub() {
                     {tpl.exercises?.length || 0} תרגילים
                   </span>
                 </div>
-                
-                <button 
+
+                <button
                   onClick={() => navigate(`/workouts/active/${tpl.id}`)}
                   className="w-full bg-purple-50 hover:bg-purple-600 hover:text-white text-purple-700 font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2"
                 >
@@ -81,24 +395,13 @@ export function WorkoutHub() {
           <div className="space-y-3">
             {sessions.map(session => {
               const matchedTemplate = templates.find(t => t.id === session.template_id);
-              const dateObj = new Date(session.performed_at);
-              
               return (
-                <div key={session.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-lg">
-                      {matchedTemplate?.name || 'אימון ללא שם'}
-                    </h3>
-                    <p className="text-sm text-slate-500 flex items-center gap-2 mt-0.5">
-                      {dateObj.toLocaleDateString('he-IL')} בשעה {dateObj.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm font-medium">
-                    <div className="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 text-slate-600">
-                      סך הכל סטים: <span className="font-bold text-slate-800">{session.sets?.length || 0}</span>
-                    </div>
-                  </div>
-                </div>
+                <SessionCard
+                  key={session.id}
+                  session={session}
+                  templateName={matchedTemplate?.name || 'אימון ללא שם'}
+                  template={matchedTemplate}
+                />
               );
             })}
           </div>

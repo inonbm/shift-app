@@ -450,7 +450,7 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
                     type="number"
                     name="calories_per_100g"
                     min="0"
-                    step="0.1"
+                    step="0.01"
                     required
                     value={formData.calories_per_100g}
                     onChange={handleChange}
@@ -464,7 +464,7 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
                     type="number"
                     name="protein_per_100g"
                     min="0"
-                    step="0.1"
+                    step="0.01"
                     required
                     value={formData.protein_per_100g}
                     onChange={handleChange}
@@ -478,7 +478,7 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
                     type="number"
                     name="carbs_per_100g"
                     min="0"
-                    step="0.1"
+                    step="0.01"
                     required
                     value={formData.carbs_per_100g}
                     onChange={handleChange}
@@ -492,7 +492,7 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
                     type="number"
                     name="fats_per_100g"
                     min="0"
-                    step="0.1"
+                    step="0.01"
                     required
                     value={formData.fats_per_100g}
                     onChange={handleChange}
