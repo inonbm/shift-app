@@ -61,17 +61,17 @@ const FULL_BODY_WOMEN: DefaultProgram = {
     { focus_area: 'רגליים', exercise_name: 'סקוואט בסמית', target_sets: 3, target_reps: 12 },
     { focus_area: 'רגליים', exercise_name: 'כפיפת ברכיים- המסטרינג', target_sets: 3, target_reps: 12 },
     { focus_area: 'רגליים', exercise_name: 'מקרבי ירך', target_sets: 3, target_reps: 15 },
-    
+
     // Glutes
     { focus_area: 'ישבן', exercise_name: 'היפ טראסט', target_sets: 4, target_reps: 10 },
     { focus_area: 'ישבן', exercise_name: 'מרחיקי ירך', target_sets: 3, target_reps: 15 },
     { focus_area: 'ישבן', exercise_name: 'קיק בק בכבל/מכונה', target_sets: 3, target_reps: 15 },
-    
+
     // Upper Body
     { focus_area: 'פלג גוף עליון- חיזוק', exercise_name: 'חתירה רחבה בפולי', target_sets: 3, target_reps: 12 },
     { focus_area: 'פלג גוף עליון- חיזוק', exercise_name: 'לחיצת חזה עם דאמבלים', target_sets: 3, target_reps: 12 },
     { focus_area: 'פלג גוף עליון- חיזוק', exercise_name: 'פשיטת מרפקים כנגד פולי', target_sets: 3, target_reps: 15 },
-    
+
     // Abs
     { focus_area: 'בטן', exercise_name: 'כפיפת בטן על בוסו', target_sets: 3, target_reps: 20 },
   ]
@@ -85,7 +85,7 @@ const FULL_BODY_MEN: DefaultProgram = {
     { focus_area: 'פלג גוף תחתון', exercise_name: 'כפיפת ברכיים- המסטרינג', target_sets: 3, target_reps: 12 },
     { focus_area: 'פלג גוף תחתון', exercise_name: 'פשיטת ברכיים- קוואד', target_sets: 3, target_reps: 12 },
     { focus_area: 'פלג גוף תחתון', exercise_name: 'לאנג\'ים בהליכה', target_sets: 3, target_reps: 20 },
-    
+
     // Upper Body
     { focus_area: 'פלג גוף עליון', exercise_name: 'הרחקת כתף צידית עם דאמבלים', target_sets: 3, target_reps: 15 },
     { focus_area: 'פלג גוף עליון', exercise_name: 'הרחקת כתף צידית בכבל/פולי', target_sets: 3, target_reps: 15 },
