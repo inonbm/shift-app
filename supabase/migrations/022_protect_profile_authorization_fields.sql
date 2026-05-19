@@ -1,5 +1,5 @@
--- Migration: 020_protect_profile_authorization_fields.sql
--- Description: Prevent users from escalating authorization-sensitive profile fields via self-update RLS.
+-- Migration: 022_protect_profile_authorization_fields.sql
+-- Description: Prevent client sessions from changing authorization-sensitive profile fields.
 
 CREATE OR REPLACE FUNCTION public.prevent_profile_authorization_field_changes()
 RETURNS TRIGGER AS $$
@@ -9,23 +9,21 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- A user updating their own profile may edit safe profile fields, but may not
-  -- promote their role or reassign trainer ownership. Edge Functions that rely on
-  -- profiles.role as an authorization signal require these fields to be immutable
-  -- from untrusted client sessions.
-  IF auth.uid() = OLD.id THEN
-    IF NEW.role IS DISTINCT FROM OLD.role THEN
-      RAISE EXCEPTION 'Users cannot change their own role';
-    END IF;
+  -- Client sessions may edit safe profile fields, but authorization-sensitive
+  -- fields must be immutable outside service-role Edge Functions. This prevents
+  -- trainees from promoting themselves and prevents trainers from promoting or
+  -- reassigning trainees through direct client-side profile updates.
+  IF NEW.role IS DISTINCT FROM OLD.role THEN
+    RAISE EXCEPTION 'Only service role can change profile role';
+  END IF;
 
-    IF NEW.trainer_id IS DISTINCT FROM OLD.trainer_id THEN
-      RAISE EXCEPTION 'Users cannot change their own trainer assignment';
-    END IF;
+  IF NEW.trainer_id IS DISTINCT FROM OLD.trainer_id THEN
+    RAISE EXCEPTION 'Only service role can change trainer assignment';
   END IF;
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
 
 DROP TRIGGER IF EXISTS prevent_profile_authorization_field_changes ON public.profiles;
 CREATE TRIGGER prevent_profile_authorization_field_changes
