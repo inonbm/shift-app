@@ -36,10 +36,11 @@ Do not include calorie math, just the recipe title, a short motivating intro, in
 Keep it concise and motivating!
 `;
 
-    // Call Gemini API directly from Edge Function
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    // Call Gemini API directly from the Edge Function using the server-side secret.
+    const geminiUrl = new URL('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent');
+    geminiUrl.searchParams.set('key', apiKey);
     
-    const response = await fetch(geminiUrl, {
+    const response = await fetch(geminiUrl.toString(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -72,8 +73,10 @@ Keep it concise and motivating!
     );
 
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400 
