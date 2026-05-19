@@ -1,9 +1,6 @@
 import { create } from 'zustand';
-import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { TraineeWithData, TraineeData, CreateTraineeInput } from '../types';
-import { calculateBMR, calculateTDEE, calculateTargetCalories, calculateMacros } from '../lib/nutrition';
-import { assignDefaultWorkoutTemplate } from '../lib/workoutDefaults';
 
 interface TraineeState {
   /** List of trainees managed by the current trainer */
@@ -127,153 +124,18 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (!currentUser) throw new Error('Not authenticated');
-
-      // 1. Create a secondary Supabase client that doesn't persist sessions
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
-      const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-        auth: { persistSession: false, autoRefreshToken: false }
+      const { data, error } = await supabase.functions.invoke('create-trainee', {
+        body: input,
       });
 
-      let newlyCreatedUserId: string | null = null;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      try {
-        // 2. Sign up the new user
-      const { data: authData, error: authError } = await authClient.auth.signUp({
-        email: input.email,
-        password: input.password,
-        options: {
-          data: {
-            full_name: input.full_name,
-            role: 'trainee'
-          }
-        }
-      });
-
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Failed to create user account');
-
-      newlyCreatedUserId = authData.user.id;
-      const traineeId = newlyCreatedUserId;
-
-      // The database trigger auto-creates the profile row, but it may take
-      // a few hundred milliseconds to propagate. We MUST wait for it to exist
-      // before updating trainer_id, otherwise the RLS check in manages_trainee()
-      // will fail with a 403 when we try to insert into trainee_data.
-
-      // 2a. Poll until the profile row exists (max ~7.5 seconds)
-      let profileReady = false;
-      for (let attempt = 0; attempt < 15; attempt++) {
-        const { data: profileCheck } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', traineeId)
-          .maybeSingle();
-        
-        if (profileCheck) {
-          profileReady = true;
-          break;
-        }
-        await new Promise(r => setTimeout(r, 500));
-      }
-      if (!profileReady) throw new Error('Profile creation timed out. Please try again.');
-
-      // 2b. Set this trainee's trainer_id to the current trainer, and save phone number
-      const { error: profileUpdateError } = await supabase
-        .from('profiles')
-        .update({ 
-          trainer_id: currentUser.id,
-          phone_number: input.phone_number || null
-        })
-        .eq('id', traineeId);
-
-      if (profileUpdateError) throw profileUpdateError;
-
-      // 2c. Confirm the trainer_id update has propagated before touching trainee_data.
-      // This ensures manages_trainee(traineeId) returns true for the INSERT RLS policy.
-      let trainerLinked = false;
-      for (let attempt = 0; attempt < 10; attempt++) {
-        const { data: linkCheck } = await supabase
-          .from('profiles')
-          .select('trainer_id')
-          .eq('id', traineeId)
-          .maybeSingle();
-
-        if (linkCheck?.trainer_id === currentUser.id) {
-          trainerLinked = true;
-          break;
-        }
-        await new Promise(r => setTimeout(r, 500));
-      }
-      if (!trainerLinked) throw new Error('Trainer link timed out. The profile update was too slow.');
-
-      // Calculate initial nutrition targets based on form input
-      const bmr = calculateBMR(input.gender, input.weight_kg, input.height_cm, input.age);
-      const tdee = calculateTDEE(bmr, input.activity_level);
-      const goalCalories = calculateTargetCalories(tdee, input.goal);
-      const macros = calculateMacros(input.weight_kg, Math.max(0, goalCalories), input.protein_factor || 2.0);
-
-      // 3. Insert the physical data via primary client (RLS is now satisfied)
-      const traineeData: Partial<TraineeData> = {
-        id: traineeId,
-        gender: input.gender,
-        age: input.age,
-        weight_kg: input.weight_kg,
-        height_cm: input.height_cm,
-        activity_level: input.activity_level,
-        goal: input.goal,
-        is_busy_lifestyle: input.is_busy_lifestyle ?? false,
-        bmr: bmr,
-        tdee: tdee,
-        goal_calories: goalCalories,
-        protein_grams: macros.proteinGrams,
-        carbs_grams: macros.carbsGrams,
-        fat_grams: macros.fatGrams,
-        is_advanced: input.is_advanced ?? false,
-        is_available_4_plus_days: input.is_available_4_plus_days ?? false,
-        protein_factor: input.protein_factor || 2.0,
-      };
-
-      const { error: dataError } = await supabase
-        .from('trainee_data')
-        .upsert({ ...traineeData, updated_at: new Date().toISOString() });
-
-      if (dataError) throw dataError;
-
-      // 4. Assign default workout plan based on attributes
-      await assignDefaultWorkoutTemplate(
-        traineeId,
-        currentUser.id,
-        input.gender,
-        input.is_advanced ?? false,
-        input.is_available_4_plus_days ?? false
-      );
-
-      // 5. Refresh trainee list
+      // Refresh trainee list after the server-side creation workflow completes.
       await get().fetchTrainees();
-
-      } catch (innerError) {
-        // Rollback: If anything fails after user creation (or during it if we got an ID),
-        // we must invoke the admin-delete-user edge function to completely remove the auth user
-        // and avoid "orphan" trainees or "User already registered" errors.
-        if (newlyCreatedUserId) {
-          console.log('Rolling back orphaned trainee creation for:', newlyCreatedUserId);
-          try {
-            await supabase.functions.invoke('admin-delete-user', {
-              body: { targetUserId: newlyCreatedUserId }
-            });
-          } catch (rollbackError) {
-            console.error('Failed to rollback orphaned user:', rollbackError);
-          }
-        }
-        throw innerError;
-      }
-    } catch (error: any) {
-      console.error('Failed to create trainee [FULL ERROR]:', JSON.stringify(error, null, 2), error);
-      const errMsg = error?.message || (typeof error === 'string' ? error : 'Failed to create trainee');
+    } catch (error) {
+      console.error('Failed to create trainee:', error);
+      const errMsg = error instanceof Error ? error.message : 'Failed to create trainee';
       set({
         isLoading: false,
         error: errMsg,
