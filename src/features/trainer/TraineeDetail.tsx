@@ -421,19 +421,21 @@ export function TraineeDetail() {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
       {/* Header */}
-      <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-        <button 
-          onClick={() => navigate('/trainer')}
-          className="p-2 -mr-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-colors"
-        >
-          <ChevronRight size={24} />
-        </button>
-        <div className="flex-1">
-          <h1 className="text-xl font-bold text-slate-800">{currentTrainee.full_name}</h1>
-          <p className="text-sm text-slate-500">{currentTrainee.email}</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+        <div className="flex items-center gap-3 min-w-0">
+          <button 
+            onClick={() => navigate('/trainer')}
+            className="p-2 -mr-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-xl transition-colors flex-shrink-0"
+          >
+            <ChevronRight size={24} />
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-slate-800 truncate">{currentTrainee.full_name}</h1>
+            <p className="text-sm text-slate-500 truncate">{currentTrainee.email}</p>
+          </div>
         </div>
         {!isEditing && activeTab === 'overview' && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
             {data && (
               <>
                 <button 
