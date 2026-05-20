@@ -12,6 +12,7 @@ import { TraineeDetail } from './features/trainer/TraineeDetail';
 import { FoodsManager } from './features/trainer/FoodsManager';
 import { WorkoutTemplateForm } from './features/trainer/WorkoutTemplateForm';
 import { AdminDashboard } from './features/admin/AdminDashboard';
+import { TraineeDashboard } from './features/trainee/Dashboard';
 import { DietView } from './features/trainee/DietView';
 import { WorkoutHub } from './features/trainee/WorkoutHub';
 import { ActiveWorkout } from './features/trainee/ActiveWorkout';
@@ -41,7 +42,7 @@ function App() {
             user && profile ? (
               <Navigate to={
                 profile.role === 'admin' ? '/admin' : 
-                profile.role === 'trainer' ? '/trainer' : '/diet'
+                profile.role === 'trainer' ? '/trainer' : '/trainee/dashboard'
               } replace />
             ) : (
               <Navigate to="/login" replace />
@@ -105,13 +106,25 @@ function App() {
           />
 
           {/* Trainee Routes */}
-          <Route 
-            path="/diet/*" 
+          <Route
+            path="/trainee"
+            element={<Navigate to="/trainee/dashboard" replace />}
+          />
+          <Route
+            path="/trainee/dashboard"
+            element={
+              <ProtectedRoute requiredRole="trainee">
+                <TraineeDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/diet/*"
             element={
               <ProtectedRoute requiredRole="trainee">
                 <DietView />
               </ProtectedRoute>
-            } 
+            }
           />
           <Route 
             path="/workouts" 
