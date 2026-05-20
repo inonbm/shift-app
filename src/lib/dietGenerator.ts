@@ -49,7 +49,7 @@ function resolveOptions(
   foods: Food[],
   targetGrams: number,
   primaryKey: 'carbs_per_100g' | 'protein_per_100g' | 'fats_per_100g',
-  primaryOutputKey: 'carbs_g' | 'protein_g' | 'fat_g'
+  _primaryOutputKey: 'carbs_g' | 'protein_g' | 'fat_g'
 ): MealFoodOption[] {
   const options: MealFoodOption[] = [];
   if (targetGrams <= 1) return options;
