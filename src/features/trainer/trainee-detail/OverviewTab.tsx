@@ -115,15 +115,15 @@ export function OverviewTab({
           </div>
 
           {/* Busy Lifestyle toggle */}
-          <label className="flex w-full h-auto items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 cursor-pointer transition-colors hover:bg-amber-100">
+          <label dir="ltr" className="flex w-full h-auto items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 cursor-pointer transition-colors hover:bg-amber-100">
             <input
               type="checkbox"
               name="is_busy_lifestyle"
               checked={(editForm as any).is_busy_lifestyle ?? false}
               onChange={handleCheckboxChange}
-              className="mt-1 h-4 w-4 flex-shrink-0 self-start rounded accent-amber-500 cursor-pointer"
+              className="h-4 w-4 flex-shrink-0 rounded accent-amber-500 cursor-pointer"
             />
-            <div className="min-w-0 flex-1">
+            <div dir="rtl" className="min-w-0 flex-1 text-right">
               <p className="text-xs font-bold leading-snug text-amber-800 whitespace-normal break-words">מתאמן עסוק / סטודנט ⏱️</p>
               <p className="mt-1 text-xs leading-relaxed text-amber-600 whitespace-normal break-words">מעדיף מאכלים מהירים וללא בישול בעת יצירת תפריט</p>
             </div>

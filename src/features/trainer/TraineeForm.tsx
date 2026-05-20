@@ -364,15 +364,15 @@ export function TraineeForm() {
             </div>
 
             {/* Busy Lifestyle Toggle */}
-            <label className="flex w-full h-auto items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 cursor-pointer transition-colors hover:bg-amber-100">
+            <label dir="ltr" className="flex w-full h-auto items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 cursor-pointer transition-colors hover:bg-amber-100">
               <input
                 type="checkbox"
                 name="is_busy_lifestyle"
                 checked={formData.is_busy_lifestyle || false}
                 onChange={handleCheckboxChange}
-                className="mt-1 h-5 w-5 flex-shrink-0 self-start rounded accent-amber-500 cursor-pointer"
+                className="h-5 w-5 flex-shrink-0 rounded accent-amber-500 cursor-pointer"
               />
-              <div className="min-w-0 flex-1">
+              <div dir="rtl" className="min-w-0 flex-1 text-right">
                 <p className="text-sm font-bold leading-snug text-amber-800 whitespace-normal break-words">מתאמן עסוק / סטודנט ⏱️</p>
                 <p className="mt-1 text-xs leading-relaxed text-amber-600 whitespace-normal break-words">(המערכת תעדיף לשבץ מאכלים מהירים וללא בישול כמו כריכים, מעדנים, פריכיות וכו')</p>
               </div>
