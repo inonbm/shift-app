@@ -184,29 +184,6 @@ function resolveOptions(
     }
   }
 
-  // ── ANCHOR NORMALIZATION: macro equivalency across all alternatives ─────────
-  // Back-calculate units for each non-anchor option so it delivers exactly the
-  // same primary-macro amount as options[0]. Mixed weight/unit columns work
-  // correctly because each food uses its own macroRef.
-  if (options.length > 1) {
-    const anchorMacroAmount = options[0][primaryOutputKey];
-
-    for (let i = 1; i < options.length; i++) {
-      const food = foods.find(f => f.id === options[i].food_id);
-      if (!food || food[primaryKey] <= 0) continue;
-
-      const ref = macroRef(food);
-      const exactUnits = (anchorMacroAmount * ref) / food[primaryKey];
-
-      const normalizedUnits = roundUnitQuantity(food, exactUnits);
-      if (normalizedUnits <= 0) continue;
-
-      options[i] = buildOption(food, normalizedUnits);
-      // Pin to anchor to eliminate floating-point drift
-      options[i][primaryOutputKey] = anchorMacroAmount;
-    }
-  }
-
   return options;
 }
 
@@ -305,26 +282,16 @@ export function generateDietPlan(
     // STEP 1: CARBS
     // ----------------------------------------------------
     const carbOptions = resolveOptions(selectedCarbFoods, T_c, 'carbs_per_100g', 'carbs_g');
-    
-    // Get median cross-macros from carb options to predict deduction
-    // (We average it out because the UI lets the user pick ANY carb option, 
-    // so we build the rest of the meal around the typical incidental macros of these choices)
-    const avgCarbProtein = carbOptions.reduce((acc, obj) => acc + obj.protein_g, 0) / (carbOptions.length || 1);
-    const avgCarbFat = carbOptions.reduce((acc, obj) => acc + obj.fat_g, 0) / (carbOptions.length || 1);
 
     // ----------------------------------------------------
     // STEP 2: PROTEIN
     // ----------------------------------------------------
-    const R_p = clamp(T_p - avgCarbProtein); // Remaining protein after carbs
-    const proteinOptions = resolveOptions(selectedProteinFoods, R_p, 'protein_per_100g', 'protein_g');
-
-    const avgProteinFat = proteinOptions.reduce((acc, obj) => acc + obj.fat_g, 0) / (proteinOptions.length || 1);
+    const proteinOptions = resolveOptions(selectedProteinFoods, T_p, 'protein_per_100g', 'protein_g');
 
     // ----------------------------------------------------
     // STEP 3: FATS
     // ----------------------------------------------------
-    const R_f = clamp(T_f - avgCarbFat - avgProteinFat); // Remaining fat after carbs & protein
-    const fatOptions = resolveOptions(selectedFatFoods, R_f, 'fats_per_100g', 'fat_g');
+    const fatOptions = resolveOptions(selectedFatFoods, T_f, 'fats_per_100g', 'fat_g');
 
     // ----------------------------------------------------
     // STEP 4: RECALCULATE MEAL TARGETS
