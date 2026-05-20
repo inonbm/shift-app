@@ -184,29 +184,6 @@ function resolveOptions(
     }
   }
 
-  // ── ANCHOR NORMALIZATION: macro equivalency across all alternatives ─────────
-  // Back-calculate units for each non-anchor option so it delivers exactly the
-  // same primary-macro amount as options[0]. Mixed weight/unit columns work
-  // correctly because each food uses its own macroRef.
-  if (options.length > 1) {
-    const anchorMacroAmount = options[0][primaryOutputKey];
-
-    for (let i = 1; i < options.length; i++) {
-      const food = foods.find(f => f.id === options[i].food_id);
-      if (!food || food[primaryKey] <= 0) continue;
-
-      const ref = macroRef(food);
-      const exactUnits = (anchorMacroAmount * ref) / food[primaryKey];
-
-      const normalizedUnits = roundUnitQuantity(food, exactUnits);
-      if (normalizedUnits <= 0) continue;
-
-      options[i] = buildOption(food, normalizedUnits);
-      // Pin to anchor to eliminate floating-point drift
-      options[i][primaryOutputKey] = anchorMacroAmount;
-    }
-  }
-
   return options;
 }
 
@@ -276,22 +253,37 @@ export function generateDietPlan(
 
     const filterNoRepetition = (foods: Food[]) => foods.filter(f => !previousMealFoodIds.includes(f.id));
 
-    const getFoodsForMeal = (categoryFoods: Food[]) => {
+    const getFoodsForMeal = (categoryFoods: Food[], filterFn?: (f: Food) => boolean) => {
+      let baseFoods = filterFn ? categoryFoods.filter(filterFn) : categoryFoods;
+      if (baseFoods.length < 4) baseFoods = categoryFoods; // Fallback to all if cluster is too small
+
       // 1. Double filter: category + no repetition
-      let filtered = filterNoRepetition(filterSuitability(categoryFoods));
+      let filtered = filterNoRepetition(filterSuitability(baseFoods));
       if (filtered.length >= 4) return filtered;
 
       // 2. Fallback 1: category only (drop anti-repetition)
-      filtered = filterSuitability(categoryFoods);
+      filtered = filterSuitability(baseFoods);
       if (filtered.length >= 4) return filtered;
 
-      // 3. Fallback 2: all foods in category (drop both constraints)
-      return categoryFoods;
+      // 3. Fallback 2: base foods (drop both constraints)
+      return baseFoods;
     };
 
-    // Pick exactly 4 random foods per category for this meal
-    const selectedCarbFoods = selectRandomUnique(getFoodsForMeal(carbFoods), 4);
-    const selectedProteinFoods = selectRandomUnique(getFoodsForMeal(proteinFoods), 4);
+    // Homogeneous Grouping: Ensure options within a block have similar incidental macros
+    // to prevent massive calorie swings when the user swaps them.
+    const isHighProteinCarb = Math.random() > 0.8; // 20% chance for protein bread/pasta
+    const isFattyProtein = Math.random() > 0.7; // 30% chance for eggs/fatty meat
+
+    const selectedCarbFoods = selectRandomUnique(
+      getFoodsForMeal(carbFoods, f => isHighProteinCarb ? f.protein_per_100g >= 10 : f.protein_per_100g < 10), 
+      4
+    );
+    
+    const selectedProteinFoods = selectRandomUnique(
+      getFoodsForMeal(proteinFoods, f => isFattyProtein ? f.fats_per_100g >= 8 : f.fats_per_100g < 8), 
+      4
+    );
+    
     const selectedFatFoods = selectRandomUnique(getFoodsForMeal(fatFoods), 4);
 
     // Update history buffer for the next meal
