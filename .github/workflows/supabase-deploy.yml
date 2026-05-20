@@ -1,0 +1,33 @@
+name: Supabase Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+      PROJECT_ID: ${{ secrets.PROJECT_ID }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@a4d563a017eb7e7da097c40c441f85dbdcc4411f  # v2.0.1
+        with:
+          version: latest
+
+      - name: Link Supabase project
+        run: supabase link --project-ref "$PROJECT_ID" --password "$DB_PASSWORD"
+
+      - name: Push database changes
+        run: supabase db push
+
+      - name: Deploy edge function
+        run: supabase functions deploy create-trainee
