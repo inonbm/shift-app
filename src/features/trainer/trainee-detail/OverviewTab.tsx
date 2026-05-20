@@ -57,7 +57,7 @@ export function OverviewTab({
       isEditing ? (
         <div className="space-y-4">
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex flex-row gap-4">
               <div className="flex-1">
                 <label className="block text-xs font-semibold text-slate-500 mb-1">גיל</label>
                 <input type="number" name="age" value={editForm.age || ''} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none text-sm" />
@@ -71,7 +71,7 @@ export function OverviewTab({
                 </select>
               </div>
             </div>
-            <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex flex-row gap-4">
               <div className="flex-1">
                 <label className="block text-xs font-semibold text-slate-500 mb-1">משקל (ק״ג)</label>
                 <input type="number" step="0.1" name="weight_kg" value={editForm.weight_kg || ''} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none text-sm" />
@@ -153,7 +153,7 @@ export function OverviewTab({
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-row gap-4">
             <div className="flex-1">
               <p className="text-sm text-slate-500">גיל</p>
               <p className="font-bold text-slate-800">{data.age} שנים</p>
@@ -163,7 +163,7 @@ export function OverviewTab({
               <p className="font-bold text-slate-800">{GENDER_LABELS[data.gender]}</p>
             </div>
           </div>
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-row gap-4">
             <div className="flex-1">
               <p className="text-sm text-slate-500">גובה</p>
               <p className="font-bold text-slate-800">{data.height_cm} ס״מ</p>
