@@ -8,12 +8,6 @@ const MEAL_SUITABILITY_MAP: Record<number, MealSuitability[]> = {
   3: ['dinner']
 };
 
-/**
- * Normalizes all database values dynamically and bounds numbers logically.
- */
-function clamp(val: number, min = 0): number {
-  return Math.max(val, min);
-}
 
 /**
  * Select `count` random unique items from `array`.
@@ -189,13 +183,11 @@ function resolveOptions(
 }
 
 /**
- * CRITICAL CALORIE RULE: Because resolveOptions rounds food weights up for user
- * convenience (nearest 10 g or 5 g), the raw output would naturally exceed the
- * requested calorie ceiling. To compensate, we pre-deflate each meal's macro
- * targets by ROUNDING_BIAS_FACTOR before feeding them into the solver.
- * This keeps the final totals roughly 50–100 kcal UNDER the ceiling.
+ * CRITICAL CALORIE RULE: We now use strict block targets.
+ * We no longer pre-deflate targets or deduct cross-macros.
+ * Each meal category is calculated purely for its own macro target.
  */
-const ROUNDING_BIAS_FACTOR = 0.93;
+const ROUNDING_BIAS_FACTOR = 1.0;
 
 /**
  * Generates the full 4-meal diet plan using the Sequential Cross-Macro Solver.
@@ -298,49 +290,24 @@ export function generateDietPlan(
     // STEP 1: CARBS
     // ----------------------------------------------------
     const carbOptions = resolveOptions(selectedCarbFoods, T_c, 'carbs_per_100g', 'carbs_g');
-    
-    // Get median cross-macros from carb options to predict deduction
-    // (We average it out because the UI lets the user pick ANY carb option, 
-    // so we build the rest of the meal around the typical incidental macros of these choices)
-    const avgCarbProtein = carbOptions.reduce((acc, obj) => acc + obj.protein_g, 0) / (carbOptions.length || 1);
-    const avgCarbFat = carbOptions.reduce((acc, obj) => acc + obj.fat_g, 0) / (carbOptions.length || 1);
 
     // ----------------------------------------------------
     // STEP 2: PROTEIN
     // ----------------------------------------------------
-    const R_p = clamp(T_p - avgCarbProtein); // Remaining protein after carbs
-    const proteinOptions = resolveOptions(selectedProteinFoods, R_p, 'protein_per_100g', 'protein_g');
-
-    const avgProteinFat = proteinOptions.reduce((acc, obj) => acc + obj.fat_g, 0) / (proteinOptions.length || 1);
+    const proteinOptions = resolveOptions(selectedProteinFoods, T_p, 'protein_per_100g', 'protein_g');
 
     // ----------------------------------------------------
     // STEP 3: FATS
     // ----------------------------------------------------
-    const R_f = clamp(T_f - avgCarbFat - avgProteinFat); // Remaining fat after carbs & protein
-    const fatOptions = resolveOptions(selectedFatFoods, R_f, 'fats_per_100g', 'fat_g');
+    const fatOptions = resolveOptions(selectedFatFoods, T_f, 'fats_per_100g', 'fat_g');
 
     // ----------------------------------------------------
-    // STEP 4: RECALCULATE MEAL TARGETS
+    // STEP 4: USE STRICT TARGETS FOR THE MEAL
     // ----------------------------------------------------
-    const avgP = 
-      (proteinOptions.reduce((acc, o) => acc + o.protein_g, 0) / (proteinOptions.length || 1)) +
-      (carbOptions.reduce((acc, o) => acc + o.protein_g, 0) / (carbOptions.length || 1)) +
-      (fatOptions.reduce((acc, o) => acc + o.protein_g, 0) / (fatOptions.length || 1));
-
-    const avgC = 
-      (proteinOptions.reduce((acc, o) => acc + o.carbs_g, 0) / (proteinOptions.length || 1)) +
-      (carbOptions.reduce((acc, o) => acc + o.carbs_g, 0) / (carbOptions.length || 1)) +
-      (fatOptions.reduce((acc, o) => acc + o.carbs_g, 0) / (fatOptions.length || 1));
-
-    const avgF = 
-      (proteinOptions.reduce((acc, o) => acc + o.fat_g, 0) / (proteinOptions.length || 1)) +
-      (carbOptions.reduce((acc, o) => acc + o.fat_g, 0) / (carbOptions.length || 1)) +
-      (fatOptions.reduce((acc, o) => acc + o.fat_g, 0) / (fatOptions.length || 1));
-
-    const avgKcal = 
-      (proteinOptions.reduce((acc, o) => acc + o.calories, 0) / (proteinOptions.length || 1)) +
-      (carbOptions.reduce((acc, o) => acc + o.calories, 0) / (carbOptions.length || 1)) +
-      (fatOptions.reduce((acc, o) => acc + o.calories, 0) / (fatOptions.length || 1));
+    // Instead of summing up the averages (which would include cross-macros and 
+    // overshoot the display numbers), we simply display the exact strict block targets.
+    // We calculate the expected calories of the pure block for display.
+    const expectedKcal = (T_p * 4) + (T_c * 4) + (T_f * 9);
 
     meals.push({
       id: crypto.randomUUID(), // Temp ID until DB insertion
@@ -350,10 +317,10 @@ export function generateDietPlan(
       protein_options: proteinOptions,
       carb_options: carbOptions,
       fat_options: fatOptions,
-      target_calories: Math.round(avgKcal),
-      target_protein: Math.round(avgP),
-      target_carbs: Math.round(avgC),
-      target_fat: Math.round(avgF),
+      target_calories: Math.round(expectedKcal),
+      target_protein: Math.round(T_p),
+      target_carbs: Math.round(T_c),
+      target_fat: Math.round(T_f),
       generated_at: new Date().toISOString()
     });
   }
@@ -376,22 +343,10 @@ export function recalculateDietTotals<T extends {
   target_fat?: number;
 }>(meals: T[]): T[] {
   return meals.map(meal => {
-    // The option arrays (protein_options, carb_options, fat_options) are
-    // mutually-exclusive "OR" choices: a trainee picks ONE item per category.
-    // We use index [0] from each array as the representative sample
-    // instead of summing every alternative, which would massively overcount.
-    const representative = [
-      meal.protein_options?.[0],
-      meal.carb_options?.[0],
-      meal.fat_options?.[0]
-    ].filter((o): o is MealFoodOption => o !== undefined);
-    
-    return {
-      ...meal,
-      target_calories: Math.round(representative.reduce((sum, o) => sum + o.calories, 0)),
-      target_protein: Math.round(representative.reduce((sum, o) => sum + o.protein_g, 0) * 10) / 10,
-      target_carbs: Math.round(representative.reduce((sum, o) => sum + o.carbs_g, 0) * 10) / 10,
-      target_fat: Math.round(representative.reduce((sum, o) => sum + o.fat_g, 0) * 10) / 10,
-    };
+    // In strict block mode, the database targets are already set to the strict blocks.
+    // However, if we needed to sum up actuals (including cross macros), we could do it here.
+    // Since the user requested strict blocks to be displayed, we will just return the meal as is
+    // so it retains its exact strict target (e.g. 40g protein).
+    return meal;
   });
 }

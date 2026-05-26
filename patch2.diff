@@ -1,0 +1,54 @@
+--- src/features/trainer/trainee-detail/OverviewTab.tsx
++++ src/features/trainer/trainee-detail/OverviewTab.tsx
+@@ -150,28 +150,32 @@
+           </div>
+         </div>
+       ) : (
+-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+-          <div>
+-            <p className="text-sm text-slate-500">גיל</p>
+-            <p className="font-bold text-slate-800">{data.age} שנים</p>
+-          </div>
+-          <div>
+-            <p className="text-sm text-slate-500">מגדר</p>
+-            <p className="font-bold text-slate-800">{GENDER_LABELS[data.gender]}</p>
+-          </div>
+-          <div>
+-            <p className="text-sm text-slate-500">גובה</p>
+-            <p className="font-bold text-slate-800">{data.height_cm} ס״מ</p>
+-          </div>
+-          <div>
+-            <p className="text-sm text-slate-500">משקל</p>
+-            <p className="font-bold text-slate-800">{data.weight_kg} ק״ג</p>
+-          </div>
+-          <div className="col-span-1 md:col-span-2">
++        <div className="flex flex-col gap-4">
++          <div className="flex flex-col md:flex-row gap-4">
++            <div className="flex-1">
++              <p className="text-sm text-slate-500">גיל</p>
++              <p className="font-bold text-slate-800">{data.age} שנים</p>
++            </div>
++            <div className="flex-1">
++              <p className="text-sm text-slate-500">מגדר</p>
++              <p className="font-bold text-slate-800">{GENDER_LABELS[data.gender]}</p>
++            </div>
++          </div>
++          <div className="flex flex-col md:flex-row gap-4">
++            <div className="flex-1">
++              <p className="text-sm text-slate-500">גובה</p>
++              <p className="font-bold text-slate-800">{data.height_cm} ס״מ</p>
++            </div>
++            <div className="flex-1">
++              <p className="text-sm text-slate-500">משקל</p>
++              <p className="font-bold text-slate-800">{data.weight_kg} ק״ג</p>
++            </div>
++          </div>
++          <div>
+             <p className="text-sm text-slate-500">רמת פעילות</p>
+             <p className="font-bold text-slate-800">{ACTIVITY_LEVEL_LABELS[data.activity_level]}</p>
+           </div>
+-          <div className="col-span-1 md:col-span-2 bg-purple-50 p-3 rounded-xl border border-purple-100 mt-2">
++          <div className="bg-purple-50 p-3 rounded-xl border border-purple-100 mt-2">
+             <p className="text-sm font-medium text-purple-600 mb-1">מטרה תזונתית</p>
+             <p className="font-bold text-purple-900 text-lg">{GOAL_LABELS[data.goal]}</p>
+           </div>

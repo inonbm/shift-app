@@ -25,6 +25,7 @@ interface CreateTraineeInput {
   is_advanced?: boolean;
   is_available_4_plus_days?: boolean;
   protein_factor?: number;
+  fat_percentage?: number;
 }
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
@@ -198,6 +199,9 @@ function validateInput(input: Partial<CreateTraineeInput>): asserts input is Cre
   if (input.protein_factor !== undefined && (typeof input.protein_factor !== 'number' || input.protein_factor <= 0)) {
     throw new Error('Invalid protein_factor');
   }
+  if (input.fat_percentage !== undefined && (typeof input.fat_percentage !== 'number' || input.fat_percentage < 0 || input.fat_percentage > 100)) {
+    throw new Error('Invalid fat_percentage');
+  }
 }
 
 function calculateBMR(gender: Gender, weightKg: number, heightCm: number, age: number) {
@@ -216,14 +220,16 @@ function calculateTargetCalories(tdee: number, goal: Goal) {
   return tdee + GOAL_CALORIE_ADJUSTMENTS[goal];
 }
 
-function calculateMacros(weightKg: number, targetCalories: number, proteinFactor = 2.0) {
+function calculateMacros(weightKg: number, targetCalories: number, proteinFactor = 2.0, fatPercentage = 25) {
   if (weightKg <= 0 || targetCalories <= 0) {
     return { proteinGrams: 0, fatGrams: 0, carbsGrams: 0 };
   }
   const proteinGrams = Math.round(weightKg * proteinFactor);
-  const fatGrams = Math.round(weightKg * 1.0);
-  const remainingCalories = targetCalories - (proteinGrams * 4) - (fatGrams * 9);
-  const carbsGrams = remainingCalories > 0 ? Math.round(remainingCalories / 4) : 0;
+  const remainingCalories = Math.max(0, targetCalories - (proteinGrams * 4));
+  const fatCalories = remainingCalories * (fatPercentage / 100);
+  const fatGrams = Math.round(fatCalories / 9);
+  const carbsCalories = remainingCalories - fatCalories;
+  const carbsGrams = Math.round(carbsCalories / 4);
   return { proteinGrams, fatGrams, carbsGrams };
 }
 
@@ -373,7 +379,8 @@ serve(async (req) => {
     const tdee = calculateTDEE(bmr, input.activity_level);
     const goalCalories = calculateTargetCalories(tdee, input.goal);
     const proteinFactor = input.protein_factor || 2.0;
-    const macros = calculateMacros(input.weight_kg, Math.max(0, goalCalories), proteinFactor);
+    const fatPercentage = input.fat_percentage || 25;
+    const macros = calculateMacros(input.weight_kg, Math.max(0, goalCalories), proteinFactor, fatPercentage);
 
     const traineeData = {
       id: createdTraineeId,
@@ -393,6 +400,7 @@ serve(async (req) => {
       is_advanced: input.is_advanced ?? false,
       is_available_4_plus_days: input.is_available_4_plus_days ?? false,
       protein_factor: proteinFactor,
+      fat_percentage: fatPercentage,
       updated_at: new Date().toISOString(),
     };
 

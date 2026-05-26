@@ -51,6 +51,7 @@ export interface TraineeData {
   is_advanced: boolean;
   is_available_4_plus_days: boolean;
   protein_factor?: number;
+  fat_percentage?: number;
   updated_at: string;
 }
 
@@ -184,6 +185,7 @@ export interface CreateTraineeInput {
   is_advanced?: boolean;
   is_available_4_plus_days?: boolean;
   protein_factor?: number;
+  fat_percentage?: number;
 }
 
 export interface CreateFoodInput {
