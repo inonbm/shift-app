@@ -39,21 +39,19 @@ export interface MacroTarget {
  * Fat: 1g per kg of bodyweight
  * Carbs: The remaining calories divided by 4
  */
-export function calculateMacros(weightKg: number, targetCalories: number, proteinFactor: number = 2.0): MacroTarget {
+export function calculateMacros(weightKg: number, targetCalories: number, proteinFactor: number = 2.0, fatPercentage: number = 25): MacroTarget {
   if (weightKg <= 0 || targetCalories <= 0) {
     return { proteinGrams: 0, fatGrams: 0, carbsGrams: 0 };
   }
 
   const proteinGrams = Math.round(weightKg * proteinFactor);
-  const fatGrams = Math.round(weightKg * 1.0);
   
-  const proteinCalories = proteinGrams * 4;
-  const fatCalories = fatGrams * 9;
+  const remainingCalories = Math.max(0, targetCalories - (proteinGrams * 4));
+  const fatCalories = remainingCalories * (fatPercentage / 100);
+  const fatGrams = Math.round(fatCalories / 9);
   
-  const remainingCalories = targetCalories - proteinCalories - fatCalories;
-  
-  // Ensure carbs don't go negative if target calories is extremely low
-  const carbsGrams = remainingCalories > 0 ? Math.round(remainingCalories / 4) : 0;
+  const carbsCalories = remainingCalories - fatCalories;
+  const carbsGrams = Math.round(carbsCalories / 4);
 
   return {
     proteinGrams,

@@ -57,7 +57,7 @@ export function OverviewTab({
       isEditing ? (
         <div className="space-y-4">
           <div className="flex flex-col gap-4">
-            <div className="flex flex-row gap-4">
+            <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1">
                 <label className="block text-xs font-semibold text-slate-500 mb-1">גיל</label>
                 <input type="number" name="age" value={editForm.age || ''} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none text-sm" />
@@ -71,7 +71,7 @@ export function OverviewTab({
                 </select>
               </div>
             </div>
-            <div className="flex flex-row gap-4">
+            <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1">
                 <label className="block text-xs font-semibold text-slate-500 mb-1">משקל (ק״ג)</label>
                 <input type="number" step="0.1" name="weight_kg" value={editForm.weight_kg || ''} onChange={handleChange} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none text-sm" />
@@ -116,39 +116,20 @@ export function OverviewTab({
                 ))}
               </div>
             </div>
-            <div className="mt-2">
-              <label className="block text-xs font-semibold text-slate-500 mb-1">אחוז שומן (משאר הקלוריות)</label>
-              <div className="flex bg-slate-100 p-1 rounded-lg">
-                {[20, 25, 30].map(pct => (
-                  <button
-                    key={pct}
-                    type="button"
-                    onClick={() => setEditForm(prev => ({ ...prev, fat_percentage: pct }))}
-                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
-                      (editForm.fat_percentage || 25) === pct
-                        ? 'bg-white text-purple-600 shadow-sm border border-slate-200'
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    {pct}%
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* Busy Lifestyle toggle */}
-          <label dir="ltr" className="flex w-full h-auto items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 cursor-pointer transition-colors hover:bg-amber-100">
+          <label className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl cursor-pointer hover:bg-amber-100 transition-colors">
             <input
               type="checkbox"
               name="is_busy_lifestyle"
               checked={(editForm as any).is_busy_lifestyle ?? false}
               onChange={handleCheckboxChange}
-              className="h-4 w-4 flex-shrink-0 rounded accent-amber-500 cursor-pointer"
+              className="mt-0.5 w-4 h-4 rounded accent-amber-500 flex-shrink-0 cursor-pointer"
             />
-            <div dir="rtl" className="min-w-0 flex-1 text-right">
-              <p className="text-xs font-bold leading-snug text-amber-800 whitespace-normal break-words">מתאמן עסוק / סטודנט ⏱️</p>
-              <p className="mt-1 text-xs leading-relaxed text-amber-600 whitespace-normal break-words">מעדיף מאכלים מהירים וללא בישול בעת יצירת תפריט</p>
+            <div>
+              <p className="font-bold text-amber-800 text-xs">מתאמן עסוק / סטודנט ⏱️</p>
+              <p className="text-xs text-amber-600 mt-0.5">מעדיף מאכלים מהירים וללא בישול בעת יצירת תפריט</p>
             </div>
           </label>
 
@@ -171,32 +152,28 @@ export function OverviewTab({
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-row gap-4">
-            <div className="flex-1">
-              <p className="text-sm text-slate-500">גיל</p>
-              <p className="font-bold text-slate-800">{data.age} שנים</p>
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-slate-500">מגדר</p>
-              <p className="font-bold text-slate-800">{GENDER_LABELS[data.gender]}</p>
-            </div>
-          </div>
-          <div className="flex flex-row gap-4">
-            <div className="flex-1">
-              <p className="text-sm text-slate-500">גובה</p>
-              <p className="font-bold text-slate-800">{data.height_cm} ס״מ</p>
-            </div>
-            <div className="flex-1">
-              <p className="text-sm text-slate-500">משקל</p>
-              <p className="font-bold text-slate-800">{data.weight_kg} ק״ג</p>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-slate-500">גיל</p>
+            <p className="font-bold text-slate-800">{data.age} שנים</p>
           </div>
           <div>
+            <p className="text-sm text-slate-500">מגדר</p>
+            <p className="font-bold text-slate-800">{GENDER_LABELS[data.gender]}</p>
+          </div>
+          <div>
+            <p className="text-sm text-slate-500">גובה</p>
+            <p className="font-bold text-slate-800">{data.height_cm} ס״מ</p>
+          </div>
+          <div>
+            <p className="text-sm text-slate-500">משקל</p>
+            <p className="font-bold text-slate-800">{data.weight_kg} ק״ג</p>
+          </div>
+          <div className="col-span-1 md:col-span-2">
             <p className="text-sm text-slate-500">רמת פעילות</p>
             <p className="font-bold text-slate-800">{ACTIVITY_LEVEL_LABELS[data.activity_level]}</p>
           </div>
-          <div className="bg-purple-50 p-3 rounded-xl border border-purple-100 mt-2">
+          <div className="col-span-1 md:col-span-2 bg-purple-50 p-3 rounded-xl border border-purple-100 mt-2">
             <p className="text-sm font-medium text-purple-600 mb-1">מטרה תזונתית</p>
             <p className="font-bold text-purple-900 text-lg">{GOAL_LABELS[data.goal]}</p>
           </div>
