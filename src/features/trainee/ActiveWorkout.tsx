@@ -46,19 +46,36 @@ export function ActiveWorkout() {
   // Initialize form state once template and history are loaded
   useEffect(() => {
     if (dataReady && template && Object.keys(setsData).length === 0) {
-      const lastSession = sessions
-        .filter(s => s.template_id === templateId)
-        .sort((a, b) => new Date(b.performed_at).getTime() - new Date(a.performed_at).getTime())[0];
+      // Sort all sessions by date descending to find the most recent set for each exercise
+      const sortedSessions = [...sessions].sort(
+        (a, b) => new Date(b.performed_at).getTime() - new Date(a.performed_at).getTime()
+      );
 
       const initialData: typeof setsData = {};
       template.exercises.forEach(ex => {
         initialData[ex.id] = {};
+        
+        // Find the most recent session that contains this specific exercise
+        let lastSessionWithThisExercise = null;
+        for (const session of sortedSessions) {
+          const hasExercise = session.sets.some(s => 
+            s.exercise?.exercise_name === ex.exercise_name || s.exercise_id === ex.id
+          );
+          if (hasExercise) {
+            lastSessionWithThisExercise = session;
+            break;
+          }
+        }
+
         for (let i = 1; i <= ex.target_sets; i++) {
           let defaultReps = ex.target_reps;
           let defaultWeight = 0;
 
-          if (lastSession && lastSession.sets) {
-            const lastSet = lastSession.sets.find(s => s.exercise_id === ex.id && s.set_number === i);
+          if (lastSessionWithThisExercise) {
+            const lastSet = lastSessionWithThisExercise.sets.find(s => 
+              (s.exercise?.exercise_name === ex.exercise_name || s.exercise_id === ex.id) && 
+              s.set_number === i
+            );
             if (lastSet) {
               defaultReps = lastSet.reps_done;
               defaultWeight = lastSet.weight_kg;

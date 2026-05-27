@@ -133,7 +133,10 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         .from('workout_sessions')
         .select(`
           *,
-          sets:session_sets(*)
+          sets:session_sets(
+            *,
+            exercise:template_exercises(exercise_name)
+          )
         `)
         .order('performed_at', { ascending: false });
 
