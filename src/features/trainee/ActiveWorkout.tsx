@@ -232,7 +232,7 @@ export function ActiveWorkout() {
                       <input 
                         type="number" 
                         disabled={isDone}
-                        value={currentSet?.weight || ''}
+                        value={currentSet?.weight ?? ''}
                         onChange={(e) => handleSetChange(ex.id, setNum, 'weight', e.target.value)}
                         placeholder="0"
                         className={`w-full text-center py-2 rounded-lg font-mono font-bold text-lg outline-none transition-all
@@ -243,7 +243,7 @@ export function ActiveWorkout() {
                       <input 
                         type="number" 
                         disabled={isDone}
-                        value={currentSet?.reps || ''}
+                        value={currentSet?.reps ?? ''}
                         onChange={(e) => handleSetChange(ex.id, setNum, 'reps', e.target.value)}
                         className={`w-full text-center py-2 rounded-lg font-mono font-bold text-lg outline-none transition-all
                           ${isDone ? 'bg-transparent text-emerald-700' : 'bg-white border border-slate-200 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400'}
