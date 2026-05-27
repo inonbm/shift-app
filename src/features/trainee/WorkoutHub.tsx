@@ -284,7 +284,7 @@ function SessionCard({ session, templateName, template }: SessionCardProps) {
               .slice()
               .sort((a, b) => a.set_number - b.set_number)
               .map(s => {
-                const exName = template?.exercises.find(e => e.id === s.exercise_id)?.exercise_name || 'תרגיל';
+                const exName = s.exercise?.exercise_name || template?.exercises.find(e => e.id === s.exercise_id)?.exercise_name || 'תרגיל';
                 return (
                   <div
                     key={s.id}

@@ -142,6 +142,9 @@ export interface SessionSet {
   set_number: number;
   reps_done: number;
   weight_kg: number;
+  exercise?: {
+    exercise_name: string;
+  };
 }
 
 /** Full session with all logged sets */
