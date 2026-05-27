@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CheckCircle2, ChevronRight, Save, Loader2, AlertCircle } from 'lucide-react';
 import { useWorkoutStore } from '../../stores/workoutStore';
@@ -8,35 +8,71 @@ export function ActiveWorkout() {
   const { templateId } = useParams<{ templateId: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { templates, fetchTemplates, logSession, isLoading, error } = useWorkoutStore();
+  const { templates, sessions, fetchTemplates, fetchHistory, logSession, isLoading, error } = useWorkoutStore();
 
   const [notes, setNotes] = useState('');
   // Map: exercise_id -> set_number -> { reps_done, weight_kg, isDone }
   const [setsData, setSetsData] = useState<Record<string, Record<number, { reps: number; weight: number; isDone: boolean }>>>({});
 
+  const fetchedRef = useRef(false);
+  const [dataReady, setDataReady] = useState(false);
+
   useEffect(() => {
-    if (templates.length === 0) {
-      fetchTemplates();
-    }
-  }, [templates.length, fetchTemplates]);
+    let isMounted = true;
+    const init = async () => {
+      if (fetchedRef.current) return;
+      fetchedRef.current = true;
+      
+      const promises = [];
+      const { templates: currentTemplates } = useWorkoutStore.getState();
+      
+      if (currentTemplates.length === 0) {
+        promises.push(fetchTemplates());
+      }
+      // Always fetch history to ensure we have the latest session data for this workout
+      promises.push(fetchHistory());
+      
+      await Promise.all(promises);
+      if (isMounted) setDataReady(true);
+    };
+    
+    init();
+    
+    return () => { isMounted = false; };
+  }, [fetchTemplates, fetchHistory]);
 
   const template = templates.find(t => t.id === templateId);
 
-  // Initialize form state once template loads
+  // Initialize form state once template and history are loaded
   useEffect(() => {
-    if (template && Object.keys(setsData).length === 0) {
+    if (dataReady && template && Object.keys(setsData).length === 0) {
+      const lastSession = sessions
+        .filter(s => s.template_id === templateId)
+        .sort((a, b) => new Date(b.performed_at).getTime() - new Date(a.performed_at).getTime())[0];
+
       const initialData: typeof setsData = {};
       template.exercises.forEach(ex => {
         initialData[ex.id] = {};
         for (let i = 1; i <= ex.target_sets; i++) {
-          initialData[ex.id][i] = { reps: ex.target_reps, weight: 0, isDone: false };
+          let defaultReps = ex.target_reps;
+          let defaultWeight = 0;
+
+          if (lastSession && lastSession.sets) {
+            const lastSet = lastSession.sets.find(s => s.exercise_id === ex.id && s.set_number === i);
+            if (lastSet) {
+              defaultReps = lastSet.reps_done;
+              defaultWeight = lastSet.weight_kg;
+            }
+          }
+
+          initialData[ex.id][i] = { reps: defaultReps, weight: defaultWeight, isDone: false };
         }
       });
       setSetsData(initialData);
     }
-  }, [template, setsData]);
+  }, [dataReady, template, sessions, templateId, setsData]);
 
-  if (!template) {
+  if (!dataReady || !template) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-purple-600">
         <Loader2 size={40} className="animate-spin mb-4" />
