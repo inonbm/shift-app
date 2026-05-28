@@ -18,7 +18,7 @@ export interface MealEdit {
 
 export type AddForms = Record<string, Record<string, { foodId: string; grams: number }>>;
 export type FoodSearch = Record<string, Record<string, string>>;
-export type ExerciseForm = { exercise_name: string; target_sets: number; target_reps: number };
+export type ExerciseForm = { exercise_name: string; target_sets: number; target_reps: number; focus_area?: string };
 
 export type InputOrSelectChangeHandler = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
 export type CheckboxChangeHandler = (e: ChangeEvent<HTMLInputElement>) => void;

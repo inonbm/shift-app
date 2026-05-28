@@ -16,7 +16,7 @@ export function WorkoutTemplateForm() {
   const [traineeId, setTraineeId] = useState(initialTraineeId);
   const [templateName, setTemplateName] = useState('');
   const [exercises, setExercises] = useState([
-    { exercise_name: '', target_sets: 3, target_reps: 10 }
+    { exercise_name: '', target_sets: 3, target_reps: 10, focus_area: '' }
   ]);
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export function WorkoutTemplateForm() {
   }, [fetchTrainees, clearError]);
 
   const handleAddExercise = () => {
-    setExercises([...exercises, { exercise_name: '', target_sets: 3, target_reps: 10 }]);
+    setExercises([...exercises, { exercise_name: '', target_sets: 3, target_reps: 10, focus_area: '' }]);
   };
 
   const handleRemoveExercise = (index: number) => {
@@ -50,7 +50,10 @@ export function WorkoutTemplateForm() {
         name: templateName,
         trainee_id: traineeId,
         exercises: exercises.map((ex, idx) => ({
-          ...ex,
+          exercise_name: ex.exercise_name,
+          target_sets: ex.target_sets,
+          target_reps: ex.target_reps,
+          focus_area: ex.focus_area || undefined,
           order_index: idx
         }))
       });
@@ -146,6 +149,17 @@ export function WorkoutTemplateForm() {
                     className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none"
                   />
                 </div>
+                <div className="w-full md:w-32">
+                  <label className="block md:hidden text-xs text-slate-500 mb-1">קבוצת שריר</label>
+                  <input 
+                    type="text" 
+                    list="focus-areas-new"
+                    placeholder="כללי"
+                    value={ex.focus_area}
+                    onChange={(e) => handleExerciseChange(i, 'focus_area', e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 outline-none"
+                  />
+                </div>
                 <div className="w-full md:w-24">
                   <label className="block text-xs text-slate-500 mb-1 font-bold text-center">סטים</label>
                   <input 
@@ -180,6 +194,19 @@ export function WorkoutTemplateForm() {
               </div>
             ))}
           </div>
+          <datalist id="focus-areas-new">
+            {Array.from(new Set(exercises.map(ex => ex.focus_area).filter(Boolean))).map(area => (
+              <option key={area} value={area} />
+            ))}
+            <option value="פלג גוף עליון" />
+            <option value="פלג גוף תחתון" />
+            <option value="חזה" />
+            <option value="גב" />
+            <option value="רגליים" />
+            <option value="כתפיים" />
+            <option value="ידיים" />
+            <option value="בטן" />
+          </datalist>
         </div>
 
         <button
