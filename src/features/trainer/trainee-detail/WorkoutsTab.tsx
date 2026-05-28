@@ -102,6 +102,14 @@ export function WorkoutsTab({
                             className="w-full px-2 py-1 text-xs border rounded bg-slate-50"
                           />
                           <input
+                            type="text"
+                            list={`focus-areas-${template.id}`}
+                            placeholder="קבוצת שריר"
+                            value={exerciseForm.focus_area || ''}
+                            onChange={e => setExerciseForm({ ...exerciseForm, focus_area: e.target.value })}
+                            className="w-24 px-2 py-1 text-xs border rounded bg-slate-50"
+                          />
+                          <input
                             type="number"
                             value={exerciseForm.target_sets}
                             onChange={e => setExerciseForm({ ...exerciseForm, target_sets: Number(e.target.value) })}
@@ -132,7 +140,7 @@ export function WorkoutsTab({
                             <button
                               onClick={() => {
                                 setEditingExerciseId(ex.id);
-                                setExerciseForm({ exercise_name: ex.exercise_name, target_sets: ex.target_sets, target_reps: ex.target_reps });
+                                setExerciseForm({ exercise_name: ex.exercise_name, target_sets: ex.target_sets, target_reps: ex.target_reps, focus_area: ex.focus_area || '' });
                               }}
                               className="text-blue-500 hover:text-blue-700"
                             >
@@ -161,6 +169,14 @@ export function WorkoutsTab({
                 className="w-full px-2 py-1 text-xs border rounded bg-slate-50"
               />
               <input
+                type="text"
+                list={`focus-areas-${template.id}`}
+                placeholder="קבוצת שריר"
+                value={exerciseForm.focus_area || ''}
+                onChange={e => setExerciseForm({ ...exerciseForm, focus_area: e.target.value })}
+                className="w-28 px-2 py-1 text-xs border rounded bg-slate-50"
+              />
+              <input
                 type="number"
                 placeholder="סטים"
                 value={exerciseForm.target_sets}
@@ -179,6 +195,7 @@ export function WorkoutsTab({
                   exercise_name: exerciseForm.exercise_name,
                   target_sets: exerciseForm.target_sets,
                   target_reps: exerciseForm.target_reps,
+                  focus_area: exerciseForm.focus_area || undefined,
                   order_index: template.exercises.length
                 });
                 setAddingToTemplateId(null);
@@ -193,13 +210,19 @@ export function WorkoutsTab({
             <button
               onClick={() => {
                 setAddingToTemplateId(template.id);
-                setExerciseForm({ exercise_name: '', target_sets: 3, target_reps: 10 });
+                setExerciseForm({ exercise_name: '', target_sets: 3, target_reps: 10, focus_area: '' });
               }}
               className="mt-3 w-full py-1.5 text-xs text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors border border-dashed border-blue-200 flex items-center justify-center gap-1"
             >
               <Plus size={14} /> הוסף תרגיל
             </button>
           )}
+          
+          <datalist id={`focus-areas-${template.id}`}>
+            {Array.from(new Set(template.exercises.map(ex => ex.focus_area).filter(Boolean))).map(area => (
+              <option key={area} value={area} />
+            ))}
+          </datalist>
         </div>
       ))}
     </div>
