@@ -97,7 +97,7 @@ function EditSessionModal({ session, template, onClose }: EditSessionModalProps)
     }
   };
 
-  const sortedExercises = template?.exercises.sort((a, b) => a.order_index - b.order_index) || [];
+  const sortedExercises = template?.exercises ? [...template.exercises].sort((a, b) => a.order_index - b.order_index) : [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" dir="rtl">

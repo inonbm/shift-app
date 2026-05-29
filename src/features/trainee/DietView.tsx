@@ -312,7 +312,7 @@ export function DietView() {
       {/* Accordion List */}
       <h3 className="text-xl font-bold text-slate-800 mt-8 mb-4 px-1">תפריט התזונה היומי שלך</h3>
       <div className="space-y-4">
-        {meals.sort((a, b) => a.meal_index - b.meal_index).map((meal) => {
+        {[...meals].sort((a, b) => a.meal_index - b.meal_index).map((meal) => {
           const isExpanded = expandedMeals[meal.id] ?? false; 
           const mealSelection = selections[meal.id];
           const hasSelectedAllThree = Boolean(mealSelection?.carb && mealSelection?.protein && mealSelection?.fat);

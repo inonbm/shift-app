@@ -108,7 +108,7 @@ export function DietTab({
     </div>
   ) : (
     <div className="space-y-5">
-      {meals.sort((a, b) => a.meal_index - b.meal_index).map((meal) => {
+      {[...meals].sort((a, b) => a.meal_index - b.meal_index).map((meal) => {
         const edit = menuEdits[meal.id];
         return (
           <div
