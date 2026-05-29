@@ -40,7 +40,7 @@ interface WorkoutState {
   createTemplate: (input: CreateTemplateInput) => Promise<void>;
   
   fetchHistory: () => Promise<void>;
-  logSession: (input: LogSessionInput) => Promise<void>;
+  logSession: (input: LogSessionInput) => Promise<string>;
   updateSession: (sessionId: string, input: { notes?: string; sets: LogSessionInput['sets'] }) => Promise<void>;
   
   deleteTemplate: (templateId: string) => Promise<void>;
@@ -183,6 +183,8 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
 
       // Update history list
       await get().fetchHistory();
+      
+      return sessionData.id;
     } catch (error) {
       console.error('Failed to log session:', error);
       set({

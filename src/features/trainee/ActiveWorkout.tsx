@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CheckCircle2, ChevronRight, Save, Loader2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
 import { useWorkoutStore } from '../../stores/workoutStore';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -8,11 +8,13 @@ export function ActiveWorkout() {
   const { templateId } = useParams<{ templateId: string }>();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { templates, sessions, fetchTemplates, fetchHistory, logSession, isLoading, error } = useWorkoutStore();
+  const { templates, sessions, fetchTemplates, fetchHistory, logSession, updateSession, isLoading, error } = useWorkoutStore();
 
   const [notes, setNotes] = useState('');
   // Map: exercise_id -> set_number -> { reps_done, weight_kg, isDone }
   const [setsData, setSetsData] = useState<Record<string, Record<number, { reps: number; weight: number; isDone: boolean }>>>({});
+  const activeSessionIdRef = useRef<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const fetchedRef = useRef(false);
   const [dataReady, setDataReady] = useState(false);
@@ -98,6 +100,52 @@ export function ActiveWorkout() {
     );
   }
 
+  // Auto-save effect
+  useEffect(() => {
+    if (!dataReady || !user || !template) return;
+
+    const finalSets: { exercise_id: string; set_number: number; reps_done: number; weight_kg: number }[] = [];
+    Object.entries(setsData).forEach(([exId, setsObj]) => {
+      Object.entries(setsObj).forEach(([setNumStr, data]) => {
+        if (data.isDone) {
+          finalSets.push({
+            exercise_id: exId,
+            set_number: parseInt(setNumStr),
+            reps_done: data.reps,
+            weight_kg: data.weight
+          });
+        }
+      });
+    });
+
+    if (finalSets.length === 0 && !notes && !activeSessionIdRef.current) {
+      return; // Nothing to save yet
+    }
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        setIsSaving(true);
+        if (activeSessionIdRef.current) {
+          await updateSession(activeSessionIdRef.current, { notes, sets: finalSets });
+        } else {
+          const newSessionId = await logSession({
+            template_id: template.id,
+            trainee_id: user.id,
+            notes,
+            sets: finalSets
+          });
+          activeSessionIdRef.current = newSessionId;
+        }
+      } catch (err) {
+        console.error('Failed to auto-save:', err);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 1500); // 1.5s debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [setsData, notes, dataReady, user, template, logSession, updateSession]);
+
   const handleSetChange = (exerciseId: string, setNum: number, field: 'reps' | 'weight', value: string) => {
     const numValue = value === '' ? 0 : parseFloat(value);
     setSetsData(prev => ({
@@ -146,22 +194,23 @@ export function ActiveWorkout() {
       });
     });
 
-    if (finalSets.length === 0) {
-      alert('יש לאשר לפחות סט אחד כדי לסיים אימון!');
-      return;
+    if (finalSets.length > 0 || notes) {
+      try {
+        if (activeSessionIdRef.current) {
+          await updateSession(activeSessionIdRef.current, { notes, sets: finalSets });
+        } else {
+          await logSession({
+            template_id: template.id,
+            trainee_id: user.id,
+            notes,
+            sets: finalSets
+          });
+        }
+      } catch (err) {
+        console.error('Failed to save on exit:', err);
+      }
     }
-
-    try {
-      await logSession({
-        template_id: template.id,
-        trainee_id: user.id,
-        notes,
-        sets: finalSets
-      });
-      navigate('/workouts');
-    } catch (err) {
-      console.error(err);
-    }
+    navigate('/workouts');
   };
 
   return (
@@ -178,7 +227,14 @@ export function ActiveWorkout() {
           </button>
           <div>
             <h1 className="text-xl font-bold text-slate-800">{template.name}</h1>
-            <p className="text-sm text-emerald-600 font-bold">אימון פעיל</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-emerald-600 font-bold">אימון פעיל</p>
+              {isSaving && (
+                <span className="text-xs text-slate-400 flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-full">
+                  <Loader2 size={10} className="animate-spin" /> שומר...
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -300,17 +356,17 @@ export function ActiveWorkout() {
         />
       </div>
 
-      {/* Floating Action Button for smaller screens, standard button for normal */}
+      {/* Floating Action Button */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100 z-50 md:relative md:bg-transparent md:border-none md:p-0">
         <button
           onClick={handleFinishWorkout}
-          disabled={isLoading}
-          className="w-full bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-600 hover:to-emerald-500 text-white py-4 rounded-2xl font-bold text-lg shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+          disabled={isLoading || isSaving}
+          className="w-full bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-900 hover:to-slate-800 text-white py-4 rounded-2xl font-bold text-lg shadow-lg shadow-slate-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70"
         >
-          {isLoading ? (
-            <><Loader2 size={24} className="animate-spin" /> שומר אימון...</>
+          {isLoading || isSaving ? (
+            <><Loader2 size={24} className="animate-spin" /> מעבד...</>
           ) : (
-            <><Save size={24} /> סיום ושמירת אימון</>
+            <><CheckCircle2 size={24} /> סיום אימון</>
           )}
         </button>
       </div>
