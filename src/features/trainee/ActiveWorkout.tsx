@@ -92,16 +92,6 @@ export function ActiveWorkout() {
       setIsSetsInitialized(true);
     }
   }, [dataReady, template, sessions, isSetsInitialized]);
-
-  if (!dataReady || !template) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-purple-600">
-        <Loader2 size={40} className="animate-spin mb-4" />
-        <p className="font-medium">טוען אימון...</p>
-      </div>
-    );
-  }
-
   // Auto-save effect
   useEffect(() => {
     if (!dataReady || !user || !template) return;
@@ -147,6 +137,15 @@ export function ActiveWorkout() {
 
     return () => clearTimeout(timeoutId);
   }, [setsData, notes, dataReady, user, template, logSession, updateSession]);
+
+  if (!dataReady || !template) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-purple-600">
+        <Loader2 size={40} className="animate-spin mb-4" />
+        <p className="font-medium">טוען אימון...</p>
+      </div>
+    );
+  }
 
   const handleSetChange = (exerciseId: string, setNum: number, field: 'reps' | 'weight', value: string) => {
     const numValue = value === '' ? 0 : parseFloat(value);
