@@ -13,6 +13,7 @@ export function ActiveWorkout() {
   const [notes, setNotes] = useState('');
   // Map: exercise_id -> set_number -> { reps_done, weight_kg, isDone }
   const [setsData, setSetsData] = useState<Record<string, Record<number, { reps: number; weight: number; isDone: boolean }>>>({});
+  const [isSetsInitialized, setIsSetsInitialized] = useState(false);
   const activeSessionIdRef = useRef<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -47,7 +48,7 @@ export function ActiveWorkout() {
 
   // Initialize form state once template and history are loaded
   useEffect(() => {
-    if (dataReady && template && Object.keys(setsData).length === 0) {
+    if (dataReady && template && !isSetsInitialized) {
       // Sort all sessions by date descending to find the most recent set for each exercise
       const sortedSessions = [...sessions].sort(
         (a, b) => new Date(b.performed_at).getTime() - new Date(a.performed_at).getTime()
@@ -88,8 +89,9 @@ export function ActiveWorkout() {
         }
       });
       setSetsData(initialData);
+      setIsSetsInitialized(true);
     }
-  }, [dataReady, template, sessions, templateId, setsData]);
+  }, [dataReady, template, sessions, isSetsInitialized]);
 
   if (!dataReady || !template) {
     return (
@@ -173,7 +175,7 @@ export function ActiveWorkout() {
     }));
   };
 
-  const activeExercises = template.exercises.sort((a, b) => a.order_index - b.order_index);
+  const activeExercises = [...template.exercises].sort((a, b) => a.order_index - b.order_index);
 
   const handleFinishWorkout = async () => {
     if (!user) return;

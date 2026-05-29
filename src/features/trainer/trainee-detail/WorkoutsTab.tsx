@@ -272,8 +272,8 @@ export function WorkoutsTab({
               </div>
 
               <div className="space-y-2">
-                {template && template.exercises.sort((a,b) => a.order_index - b.order_index).map(ex => {
-                  const exerciseSets = session.sets.filter(s => s.exercise_id === ex.id).sort((a,b) => a.set_number - b.set_number);
+                {template && [...template.exercises].sort((a,b) => a.order_index - b.order_index).map(ex => {
+                  const exerciseSets = [...session.sets].filter(s => s.exercise_id === ex.id).sort((a,b) => a.set_number - b.set_number);
                   if (exerciseSets.length === 0) return null; // skipped exercise
 
                   return (
