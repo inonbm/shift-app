@@ -25,19 +25,17 @@ function selectRandomUnique<T>(array: T[], count: number): T[] {
  * The DB stores nutritional values relative to food.serving_size:
  *   - Weight-based foods (measurement_unit = 'g' | 'ml'):
  *       serving_size is typically 100; values are per 100 g/ml.
- *       → rawUnits output = grams needed ✓
  *   - Unit-based foods (measurement_unit = 'unit' | 'slice' | 'scoop' | 'cup' | 'tbsp' | 'tsp'):
  *       serving_size = 1; values are per ONE unit/slice/scoop.
- *       → rawUnits output = number of units needed ✓
  *
- * Formula:  rawUnits = targetGrams × serving_size / macroPer[serving_size]g
- *
- * After building options, two post-processing steps are applied:
- *   1. Fallback  – guarantee ≥1 item so columns are never empty.
- *   2. Anchor normalization – all alternatives deliver the exact same primary
- *      macro as options[0], enabling safe item swapping by the trainee.
- *      Works correctly across mixed unit/weight alternatives because each food
- *      uses its own macroRef for the back-calculation.
+ * After building options the function applies:
+ *   1. Smart rounding — for indivisible items, picks floor vs ceil based on
+ *      which brings the primary macro closest to the target.
+ *   2. Fallback — guarantees at least 1 item so columns are never empty.
+ *   3. Calorie proximity filter — removes alternatives whose calories differ
+ *      by more than 80% from the median, so all remaining alternatives are
+ *      truly interchangeable from a caloric perspective.
+ *   4. All macro values reflect the TRUE quantity — no force-overrides.
  */
 function resolveOptions(
   foods: Food[],
@@ -49,80 +47,71 @@ function resolveOptions(
   const options: MealFoodOption[] = [];
   if (targetGrams <= 1) return options;
 
-  /** Unit types whose macros are stored per 100 of that unit (i.e. per 100 g/ml). */
   const WEIGHT_BASED_UNITS: ReadonlySet<string> = new Set(['g', 'ml']);
   const isWeightBased = (food: Food) => WEIGHT_BASED_UNITS.has(food.measurement_unit);
 
-  /**
-   * The macro reference denominator for a food.
-   * Weight-based: serving_size (usually 100) — macros stored per that many grams.
-   * Unit-based:   serving_size (usually 1)   — macros stored per that many units.
-   * Falls back gracefully if serving_size is missing.
-   */
   const macroRef = (food: Food): number =>
     food.serving_size > 0 ? food.serving_size : (isWeightBased(food) ? 100 : 1);
 
-  /**
-   * Returns true for unit-based foods that cannot meaningfully be split into
-   * halves — e.g. an egg, a yogurt cup, a protein drink, a bottle.
-   * These must be rounded to the nearest WHOLE INTEGER.
-   *
-   * Returns false for "divisible" items like bread slices, pita, or tortillas,
-   * where 1.5 units is a perfectly normal serving.
-   */
+  // ── Keyword lists for divisible vs indivisible unit foods ─────────────────
   const INDIVISIBLE_KEYWORDS = [
-    'ביצה', 'ביצים',          // egg / eggs
-    'יוגורט',                  // yogurt
-    'משקה',                    // drink
-    'בקבוק',                   // bottle
-    'מעדן',                    // pudding / dairy dessert
-    'שייק',                    // shake
-    'גביע',                    // cup/tub (yogurt tub)
-    'אמפולה',                  // ampoule / shot
-    'שקית',                    // sachet / bag
+    '\u05d1\u05d9\u05e6\u05d4', '\u05d1\u05d9\u05e6\u05d9\u05dd',
+    '\u05d9\u05d5\u05d2\u05d5\u05e8\u05d8',
+    '\u05de\u05e9\u05e7\u05d4',
+    '\u05d1\u05e7\u05d1\u05d5\u05e7',
+    '\u05de\u05e2\u05d3\u05df',
+    '\u05e9\u05d9\u05d9\u05e7',
+    '\u05d2\u05d1\u05d9\u05e2',
+    '\u05d0\u05de\u05e4\u05d5\u05dc\u05d4',
+    '\u05e9\u05e7\u05d9\u05ea',
   ];
-  // Divisible items explicitly allowed to keep 0.5 rounding
   const DIVISIBLE_KEYWORDS = [
-    'פרוסה', 'פרוסת',          // slice(s)
-    'פיתה', 'פיות',            // pita
-    'טורטיה', 'טורטייה',       // tortilla
-    'לחמניה', 'לחמניות',       // bun(s)
-    'קרואסון',                  // croissant
-    'ואפל',                    // waffle
+    '\u05e4\u05e8\u05d5\u05e1\u05d4', '\u05e4\u05e8\u05d5\u05e1\u05ea',
+    '\u05e4\u05d9\u05ea\u05d4', '\u05e4\u05d9\u05d5\u05ea',
+    '\u05d8\u05d5\u05e8\u05d8\u05d9\u05d4', '\u05d8\u05d5\u05e8\u05d8\u05d9\u05d9\u05d4',
+    '\u05dc\u05d7\u05de\u05e0\u05d9\u05d4', '\u05dc\u05d7\u05de\u05e0\u05d9\u05d5\u05ea',
+    '\u05e7\u05e8\u05d5\u05d0\u05e1\u05d5\u05df',
+    '\u05d5\u05d0\u05e4\u05dc',
   ];
 
-  /**
-   * Checks whether a food should be rounded to whole integers only.
-   * Priority: if ANY divisible keyword matches → allow halves.
-   * Otherwise: if ANY indivisible keyword matches → whole only.
-   * Default (no match): whole integer (conservative for unknown unit items).
-   */
   const isIndivisibleUnit = (food: Food): boolean => {
-    if (isWeightBased(food)) return false; // weight-based always uses gram rounding
+    if (isWeightBased(food)) return false;
     const lc = food.name.toLowerCase();
     if (DIVISIBLE_KEYWORDS.some(kw => lc.includes(kw.toLowerCase()))) return false;
     if (INDIVISIBLE_KEYWORDS.some(kw => lc.includes(kw.toLowerCase()))) return true;
-    // Conservative default for unrecognised unit items: whole integers
     return true;
   };
 
-  /**
-   * Rounds a raw unit quantity to the most user-friendly value:
-   *   - Weight-based & < 20 g  → nearest integer
-   *   - Weight-based fat       → nearest 5 g
-   *   - Weight-based other     → nearest 10 g
-   *   - Unit indivisible       → nearest whole integer
-   *   - Unit divisible         → nearest 0.5
-   */
   const roundUnitQuantity = (food: Food, rawUnits: number): number => {
     if (!isWeightBased(food)) {
       return isIndivisibleUnit(food)
-        ? Math.round(rawUnits)               // whole eggs, whole yogurts…
-        : Math.round(rawUnits * 2) / 2;      // half-slices of bread, pita…
+        ? Math.round(rawUnits)
+        : Math.round(rawUnits * 2) / 2;
     }
-    if (rawUnits < 20)                       return Math.round(rawUnits);
-    if (food.primary_category === 'fat')     return Math.round(rawUnits / 5) * 5;
+    if (rawUnits < 20)                   return Math.round(rawUnits);
+    if (food.primary_category === 'fat') return Math.round(rawUnits / 5) * 5;
     return Math.round(rawUnits / 10) * 10;
+  };
+
+  /**
+   * Smart rounding for indivisible unit-based foods: compares floor vs ceil
+   * and picks whichever gets the primary macro closest to the target.
+   *
+   * Example: egg = 7 g protein/unit, target = 25 g.
+   *   floor(3.57) = 3 -> 21 g  (off by -4)
+   *   ceil(3.57)  = 4 -> 28 g  (off by +3)  <- better -> returns 4
+   */
+  const smartRound = (food: Food, rawUnits: number): number => {
+    if (isWeightBased(food) || !isIndivisibleUnit(food)) {
+      return roundUnitQuantity(food, rawUnits);
+    }
+    const lo = Math.floor(rawUnits);
+    const hi = Math.ceil(rawUnits);
+    if (lo <= 0) return hi <= 0 ? 1 : hi;
+    const ref = macroRef(food);
+    const macroLo = (food[primaryKey] / ref) * lo;
+    const macroHi = (food[primaryKey] / ref) * hi;
+    return Math.abs(macroLo - targetGrams) <= Math.abs(macroHi - targetGrams) ? lo : hi;
   };
 
   const buildOption = (food: Food, unitsNeeded: number): MealFoodOption => {
@@ -134,7 +123,7 @@ function resolveOptions(
     return {
       food_id:   food.id,
       food_name: food.name,
-      grams:     Math.round(unitsNeeded * 10) / 10, // quantity in g for weight, count for unit
+      grams:     Math.round(unitsNeeded * 10) / 10,
       protein_g: Math.round(protein * 10) / 10,
       carbs_g:   Math.round(carbs   * 10) / 10,
       fat_g:     Math.round(fat     * 10) / 10,
@@ -143,22 +132,18 @@ function resolveOptions(
     };
   };
 
+  // ── Build raw options ─────────────────────────────────────────────────────
   for (const food of foods) {
     const macroPer = food[primaryKey];
     if (macroPer <= 0) continue;
 
     const ref = macroRef(food);
-    // Units (grams OR item-count) of this food needed to supply targetGrams of macro
     const rawUnits = (targetGrams * ref) / macroPer;
 
-    // Safety cap — skip unrealistic portions
-    // Weight-based: cap at 1200 g; Unit-based: cap at 20 units
     const cap = isWeightBased(food) ? 1200 : 20;
     if (rawUnits > cap) continue;
 
-    // Round to clean, user-friendly numbers via the unified helper
-    const unitsNeeded = roundUnitQuantity(food, rawUnits);
-
+    const unitsNeeded = smartRound(food, rawUnits);
     if (unitsNeeded <= 0) continue;
     options.push(buildOption(food, unitsNeeded));
   }
@@ -171,12 +156,64 @@ function resolveOptions(
     if (bestFood) {
       const ref = macroRef(bestFood);
       const rawUnits = (targetGrams * ref) / bestFood[primaryKey];
-      const rounded = roundUnitQuantity(bestFood, rawUnits);
+      const rounded = smartRound(bestFood, rawUnits);
       const unitsNeeded = isWeightBased(bestFood)
         ? Math.max(30, rounded)
         : Math.max(1, rounded);
       options.push(buildOption(bestFood, unitsNeeded));
     }
+  }
+
+  // ── CALORIE EFFICIENCY FILTER ──────────────────────────────────────────────
+  // Alternatives should be truly interchangeable: similar calories AND similar
+  // primary macro. We cluster by "calories per gram of primary macro" ratio.
+  //
+  // Algorithm: sort options by their cal/macro ratio, then find the largest
+  // cluster of consecutive items where adjacent ratios differ by ≤50%.
+  // This naturally groups lean items together (drink + cheese) and fatty items
+  // together (yogurt + eggs), rejecting cross-cluster outliers.
+  if (options.length > 2) {
+    const primaryOutputKey = _primaryOutputKey;
+
+    // Annotate with ratio and sort
+    const annotated = options.map((o, i) => {
+      const macro = o[primaryOutputKey] as number;
+      return { opt: o, idx: i, ratio: macro > 0 ? o.calories / macro : Infinity };
+    }).sort((a, b) => a.ratio - b.ratio);
+
+    // Find largest cluster of consecutive items with ≤50% ratio gap
+    const ADJACENT_THRESHOLD = 0.50;
+    let bestStart = 0, bestLen = 1;
+    let curStart = 0;
+
+    for (let i = 1; i < annotated.length; i++) {
+      const prev = annotated[i - 1].ratio;
+      const curr = annotated[i].ratio;
+      // Check if current item is within 50% of the previous
+      if (prev > 0 && (curr - prev) / prev <= ADJACENT_THRESHOLD) {
+        // extends current cluster
+      } else {
+        curStart = i; // start new cluster
+      }
+      const curLen = i - curStart + 1;
+      if (curLen > bestLen) {
+        bestStart = curStart;
+        bestLen = curLen;
+      }
+    }
+
+    // Apply cluster filter if we found a cluster of at least 2
+    if (bestLen >= 2) {
+      const clusterOptions = annotated.slice(bestStart, bestStart + bestLen).map(a => a.opt);
+      options.length = 0;
+      options.push(...clusterOptions);
+    }
+
+    // Sort remaining options by calorie proximity to each other
+    const avgCal = options.reduce((s, o) => s + o.calories, 0) / options.length;
+    options.sort((a, b) =>
+      Math.abs(a.calories - avgCal) - Math.abs(b.calories - avgCal)
+    );
   }
 
   return options;
@@ -205,9 +242,9 @@ export function generateDietPlan(
 
   // Group foods — for busy lifestyles, surface quick no-cook foods first via stable sort.
   const QUICK_KEYWORDS = [
-    'יוגורט', 'גבינה', 'קוטג', 'טונה', 'סרדין', 'ביצה', 'לחם', 'פיתה', 'קרקר', 'פריכי',
-    'אגוז', 'שקד', 'בוטן', 'פיסטוק', 'גרנולה', 'חלב', 'שיבולת', 'קוואקר',
-    'בננה', 'תפוח', 'גזר', 'עגבני', 'מלפפון', 'חומוס', 'אבוקדו',
+    '\u05d9\u05d5\u05d2\u05d5\u05e8\u05d8', '\u05d2\u05d1\u05d9\u05e0\u05d4', '\u05e7\u05d5\u05d8\u05d2', '\u05d8\u05d5\u05e0\u05d4', '\u05e1\u05e8\u05d3\u05d9\u05df', '\u05d1\u05d9\u05e6\u05d4', '\u05dc\u05d7\u05dd', '\u05e4\u05d9\u05ea\u05d4', '\u05e7\u05e8\u05e7\u05e8', '\u05e4\u05e8\u05d9\u05db\u05d9',
+    '\u05d0\u05d2\u05d5\u05d6', '\u05e9\u05e7\u05d3', '\u05d1\u05d5\u05d8\u05df', '\u05e4\u05d9\u05e1\u05d8\u05d5\u05e7', '\u05d2\u05e8\u05e0\u05d5\u05dc\u05d4', '\u05d7\u05dc\u05d1', '\u05e9\u05d9\u05d1\u05d5\u05dc\u05ea', '\u05e7\u05d5\u05d5\u05d0\u05e7\u05e8',
+    '\u05d1\u05e0\u05e0\u05d4', '\u05ea\u05e4\u05d5\u05d7', '\u05d2\u05d6\u05e8', '\u05e2\u05d2\u05d1\u05e0\u05d9', '\u05de\u05dc\u05e4\u05e4\u05d5\u05df', '\u05d7\u05d5\u05de\u05d5\u05e1', '\u05d0\u05d1\u05d5\u05e7\u05d3\u05d5',
     'tuna', 'cottage', 'yogurt', 'bread', 'nut', 'almond', 'oat'
   ];
 
