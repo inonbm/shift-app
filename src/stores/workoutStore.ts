@@ -44,6 +44,7 @@ interface WorkoutState {
   updateSession: (sessionId: string, input: { notes?: string; sets: LogSessionInput['sets'] }) => Promise<void>;
   
   deleteTemplate: (templateId: string) => Promise<void>;
+  deleteSession: (sessionId: string) => Promise<void>;
   updateExercise: (exerciseId: string, updates: Partial<TemplateExercise>) => Promise<void>;
   addExerciseToTemplate: (templateId: string, exercise: Omit<TemplateExercise, 'id' | 'template_id'>) => Promise<void>;
   deleteExercise: (exerciseId: string) => Promise<void>;
@@ -248,6 +249,21 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
     } catch (error) {
       console.error('Failed to delete template:', error);
       set({ isLoading: false, error: error instanceof Error ? error.message : 'שגיאה במחיקת תבנית' });
+      throw error;
+    }
+  },
+
+  deleteSession: async (sessionId: string) => {
+    try {
+      set({ isLoading: true, error: null });
+      // Delete child sets first (in case there's no cascade)
+      await supabase.from('session_sets').delete().eq('session_id', sessionId);
+      const { error } = await supabase.from('workout_sessions').delete().eq('id', sessionId);
+      if (error) throw error;
+      await get().fetchHistory();
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+      set({ isLoading: false, error: error instanceof Error ? error.message : 'שגיאה במחיקת אימון' });
       throw error;
     }
   },
