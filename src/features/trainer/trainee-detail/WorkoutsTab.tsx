@@ -14,6 +14,7 @@ interface WorkoutsTabProps {
   setAddingToTemplateId: (value: string | null) => void;
   onCreateWorkout: () => void;
   deleteTemplate: (templateId: string) => void;
+  deleteSession: (sessionId: string) => void;
   updateExercise: (exerciseId: string, updates: ExerciseForm) => void;
   addExerciseToTemplate: (templateId: string, exercise: ExerciseForm & { order_index: number }) => void;
   deleteExercise: (exerciseId: string) => void;
@@ -31,6 +32,7 @@ export function WorkoutsTab({
   setAddingToTemplateId,
   onCreateWorkout,
   deleteTemplate,
+  deleteSession,
   updateExercise,
   addExerciseToTemplate,
   deleteExercise,
@@ -264,11 +266,24 @@ export function WorkoutsTab({
                     {sessionDate}
                   </div>
                 </div>
-                {session.notes && (
-                  <div className="bg-blue-50 text-blue-700 p-2 rounded-lg text-xs max-w-xs break-words">
-                    <strong>הערת מתאמן:</strong> {session.notes}
-                  </div>
-                )}
+                <div className="flex items-start gap-2">
+                  {session.notes && (
+                    <div className="bg-blue-50 text-blue-700 p-2 rounded-lg text-xs max-w-xs break-words">
+                      <strong>הערת מתאמן:</strong> {session.notes}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (confirm('האם אתה בטוח שברצונך למחוק אימון זה?')) {
+                        deleteSession(session.id);
+                      }
+                    }}
+                    className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors flex-shrink-0"
+                    title="מחק אימון"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2">

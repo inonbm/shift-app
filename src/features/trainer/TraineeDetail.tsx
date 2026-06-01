@@ -26,7 +26,7 @@ export function TraineeDetail() {
   
   const { currentTrainee, fetchTraineeById, updateTraineeData, isLoading: isTraineeLoading, error: traineeError } = useTraineeStore();
   const { meals, fetchDiet, generateDiet, isLoading: isDietLoading, error: dietError } = useDietStore();
-  const { templates, fetchTemplates, sessions, fetchHistory, deleteTemplate, updateExercise, addExerciseToTemplate, deleteExercise, error: workoutError } = useWorkoutStore();
+  const { templates, fetchTemplates, sessions, fetchHistory, deleteTemplate, deleteSession, updateExercise, addExerciseToTemplate, deleteExercise, error: workoutError } = useWorkoutStore();
   const { foods, fetchFoods } = useFoodStore();
   const { fetchTrackingForDate } = useTrackingStore();
 
@@ -549,6 +549,7 @@ export function TraineeDetail() {
               setAddingToTemplateId={setAddingToTemplateId}
               onCreateWorkout={() => navigate(`/trainer/workouts/new?traineeId=${id}`)}
               deleteTemplate={deleteTemplate}
+              deleteSession={deleteSession}
               updateExercise={updateExercise}
               addExerciseToTemplate={addExerciseToTemplate}
               deleteExercise={deleteExercise}
