@@ -52,6 +52,7 @@ export interface TraineeData {
   is_available_4_plus_days: boolean;
   protein_factor?: number;
   fat_percentage?: number;
+  can_delete_sessions?: boolean;
   updated_at: string;
 }
 

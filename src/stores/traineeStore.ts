@@ -27,6 +27,9 @@ interface TraineeState {
   /** Trainer: update trainee data (physical measurements + calculated macros) */
   updateTraineeData: (id: string, data: Partial<TraineeData>) => Promise<void>;
 
+  /** Trainer: toggle the per-trainee workout-deletion permission */
+  updateCanDeleteSessions: (traineeId: string, value: boolean) => Promise<void>;
+
   /** Clear error */
   clearError: () => void;
 }
@@ -198,6 +201,31 @@ export const useTraineeStore = create<TraineeState>((set, get) => ({
         isLoading: false,
         error: error instanceof Error ? error.message : 'Failed to update trainee data',
       });
+    }
+  },
+
+  updateCanDeleteSessions: async (traineeId: string, value: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('trainee_data')
+        .update({ can_delete_sessions: value })
+        .eq('id', traineeId);
+
+      if (error) throw error;
+
+      // Update local state so the UI reflects immediately without a full re-fetch
+      set(state => ({
+        currentTrainee: state.currentTrainee
+          ? {
+              ...state.currentTrainee,
+              trainee_data: state.currentTrainee.trainee_data
+                ? { ...state.currentTrainee.trainee_data, can_delete_sessions: value }
+                : null,
+            }
+          : null,
+      }));
+    } catch (error) {
+      console.error('Failed to update can_delete_sessions:', error);
     }
   },
 

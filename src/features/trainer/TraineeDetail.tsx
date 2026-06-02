@@ -24,7 +24,7 @@ export function TraineeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
-  const { currentTrainee, fetchTraineeById, updateTraineeData, isLoading: isTraineeLoading, error: traineeError } = useTraineeStore();
+  const { currentTrainee, fetchTraineeById, updateTraineeData, updateCanDeleteSessions, isLoading: isTraineeLoading, error: traineeError } = useTraineeStore();
   const { meals, fetchDiet, generateDiet, isLoading: isDietLoading, error: dietError } = useDietStore();
   const { templates, fetchTemplates, sessions, fetchHistory, deleteTemplate, deleteSession, updateExercise, addExerciseToTemplate, deleteExercise, reorderExercises, error: workoutError } = useWorkoutStore();
   const { foods, fetchFoods } = useFoodStore();
@@ -544,6 +544,7 @@ export function TraineeDetail() {
               editingExerciseId={editingExerciseId}
               exerciseForm={exerciseForm}
               addingToTemplateId={addingToTemplateId}
+              canDeleteSessions={data?.can_delete_sessions ?? false}
               setEditingExerciseId={setEditingExerciseId}
               setExerciseForm={setExerciseForm}
               setAddingToTemplateId={setAddingToTemplateId}
@@ -554,6 +555,12 @@ export function TraineeDetail() {
               addExerciseToTemplate={addExerciseToTemplate}
               deleteExercise={deleteExercise}
               reorderExercises={reorderExercises}
+              onToggleCanDelete={async (value) => {
+                if (!id) return;
+                await updateCanDeleteSessions(id, value);
+                // Re-fetch so currentTrainee.trainee_data stays in sync
+                await fetchTraineeById(id);
+              }}
             />
           )}
 
