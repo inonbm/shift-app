@@ -322,13 +322,16 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         };
       })
     }));
-    // Persist to DB — batch upsert with new order_index values
+    // Persist to DB — individual update per row (avoids partial-field upsert issues)
     try {
-      const updates = orderedIds.map((id, idx) => ({ id, order_index: idx }));
-      const { error } = await supabase
-        .from('template_exercises')
-        .upsert(updates, { onConflict: 'id' });
-      if (error) throw error;
+      await Promise.all(
+        orderedIds.map((id, idx) =>
+          supabase
+            .from('template_exercises')
+            .update({ order_index: idx })
+            .eq('id', id)
+        )
+      );
     } catch (error) {
       console.error('Failed to reorder exercises:', error);
       // Roll back by re-fetching from DB
