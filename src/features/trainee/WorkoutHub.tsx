@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Clock, Loader2, Play, Edit2, X, Save, AlertCircle, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Dumbbell, Clock, Loader2, Play, Edit2, Trash2, X, Save, AlertCircle, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useWorkoutStore } from '../../stores/workoutStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useTraineeStore } from '../../stores/traineeStore';
 import type { WorkoutSession, SessionSet, WorkoutTemplate, TemplateExercise } from '../../types';
 
 // ─── Edit Session Modal ───────────────────────────────────────────────────────
@@ -237,9 +238,12 @@ interface SessionCardProps {
   session: WorkoutSession & { sets: SessionSet[] };
   templateName: string;
   template: (WorkoutTemplate & { exercises: TemplateExercise[] }) | undefined;
+  /** Whether the trainee has permission to delete this session */
+  canDelete: boolean;
+  onDelete: (sessionId: string) => void;
 }
 
-function SessionCard({ session, templateName, template }: SessionCardProps) {
+function SessionCard({ session, templateName, template, canDelete, onDelete }: SessionCardProps) {
   const [editOpen, setEditOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const dateObj = new Date(session.performed_at);
@@ -274,6 +278,20 @@ function SessionCard({ session, templateName, template }: SessionCardProps) {
               <Edit2 size={14} />
               ערוך
             </button>
+            {canDelete && (
+              <button
+                onClick={() => {
+                  if (confirm('האם אתה בטוח שברצונך למחוק אימון זה?')) {
+                    onDelete(session.id);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-700 rounded-lg text-sm font-bold transition-colors border border-red-100"
+                title="מחק אימון"
+              >
+                <Trash2 size={14} />
+                מחק
+              </button>
+            )}
           </div>
         </div>
 
@@ -321,14 +339,18 @@ function SessionCard({ session, templateName, template }: SessionCardProps) {
 export function WorkoutHub() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { templates, sessions, fetchTemplates, fetchHistory, isLoading } = useWorkoutStore();
+  const { templates, sessions, fetchTemplates, fetchHistory, deleteSession, isLoading } = useWorkoutStore();
+  const { currentTrainee, fetchMyData } = useTraineeStore();
+
+  const canDeleteSessions = currentTrainee?.trainee_data?.can_delete_sessions ?? false;
 
   useEffect(() => {
     if (user?.id) {
       fetchTemplates();
       fetchHistory();
+      fetchMyData();
     }
-  }, [user?.id, fetchTemplates, fetchHistory]);
+  }, [user?.id, fetchTemplates, fetchHistory, fetchMyData]);
 
   if (isLoading && sessions.length === 0 && templates.length === 0) {
     return (
@@ -401,6 +423,8 @@ export function WorkoutHub() {
                   session={session}
                   templateName={matchedTemplate?.name || 'אימון ללא שם'}
                   template={matchedTemplate}
+                  canDelete={canDeleteSessions}
+                  onDelete={deleteSession}
                 />
               );
             })}
