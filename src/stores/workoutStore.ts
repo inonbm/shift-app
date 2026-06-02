@@ -48,6 +48,7 @@ interface WorkoutState {
   updateExercise: (exerciseId: string, updates: Partial<TemplateExercise>) => Promise<void>;
   addExerciseToTemplate: (templateId: string, exercise: Omit<TemplateExercise, 'id' | 'template_id'>) => Promise<void>;
   deleteExercise: (exerciseId: string) => Promise<void>;
+  reorderExercises: (templateId: string, orderedIds: string[]) => Promise<void>;
 
   clearError: () => void;
 }
@@ -304,6 +305,34 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
       console.error('Failed to delete exercise:', error);
       set({ isLoading: false, error: error instanceof Error ? error.message : 'שגיאה במחיקת תרגיל' });
       throw error;
+    }
+  },
+
+  reorderExercises: async (templateId: string, orderedIds: string[]) => {
+    // Optimistically update the local store so the UI snaps immediately
+    set(state => ({
+      templates: state.templates.map(t => {
+        if (t.id !== templateId) return t;
+        const exerciseMap = Object.fromEntries(t.exercises.map(e => [e.id, e]));
+        return {
+          ...t,
+          exercises: orderedIds
+            .filter(id => exerciseMap[id])
+            .map((id, idx) => ({ ...exerciseMap[id], order_index: idx }))
+        };
+      })
+    }));
+    // Persist to DB — batch upsert with new order_index values
+    try {
+      const updates = orderedIds.map((id, idx) => ({ id, order_index: idx }));
+      const { error } = await supabase
+        .from('template_exercises')
+        .upsert(updates, { onConflict: 'id' });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Failed to reorder exercises:', error);
+      // Roll back by re-fetching from DB
+      await get().fetchTemplates();
     }
   },
 
