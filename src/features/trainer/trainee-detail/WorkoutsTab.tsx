@@ -299,7 +299,6 @@ export function WorkoutsTab({
                                 <GripVertical
                                   size={14}
                                   className="text-slate-200 group-hover/row:text-slate-400 flex-shrink-0 cursor-grab active:cursor-grabbing mr-1 transition-colors"
-                                  title="גרור להזזת התרגיל"
                                 />
                                 <span className="font-medium text-slate-700 flex-1">{ex.exercise_name}</span>
                                 <div className="flex items-center gap-3">
