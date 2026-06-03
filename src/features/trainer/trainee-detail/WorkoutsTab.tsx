@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { CalendarDays, Check, Clock, Dumbbell, Edit2, GripVertical, Pencil, Plus, Save, ShieldCheck, Trash2, X } from 'lucide-react';
+import { CalendarDays, Check, Clock, Dumbbell, Edit2, GripVertical, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
 import type { WorkoutSessionWithSets, WorkoutTemplateWithExercises, TemplateExercise } from '../../../types';
 import type { ExerciseForm, SetState } from './types';
 
@@ -492,28 +492,31 @@ export function WorkoutsTab({
             <h2 className="text-lg font-bold text-slate-800">היסטוריית אימונים (יומן ביצוע)</h2>
           </div>
 
-          {/* Per-trainee delete permission toggle */}
+          {/* Per-trainee delete permission toggle
+              RTL note: DOM order determines visual order in reverse.
+              DOM: [label] [pill]  →  Visual RTL: [pill] [label]
+              The pill lands on the LEFT (RTL end), label on the RIGHT (RTL start). */}
           <button
             id="toggle-trainee-delete-permission"
             onClick={handleTogglePermission}
             disabled={isTogglingPermission}
             title={canDeleteSessions ? 'כבה הרשאת מחיקה למתאמן' : 'הפעל הרשאת מחיקה למתאמן'}
-            className={`flex items-center gap-2.5 px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
+            className={`flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
               canDeleteSessions
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
                 : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
             } ${isTogglingPermission ? 'opacity-60 cursor-not-allowed' : ''}`}
           >
-            <ShieldCheck size={16} className={canDeleteSessions ? 'text-emerald-500' : 'text-slate-400'} />
-            <span>הרשאת מחיקה למתאמן</span>
-            {/* Toggle pill */}
+            {/* Label — DOM-first → visually rightmost in RTL ✓ */}
+            <span className="whitespace-nowrap">הרשאת מחיקה למתאמן</span>
+            {/* Toggle pill — DOM-last → visually leftmost in RTL ✓ */}
             <span
-              className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 transition-colors duration-200 ${
-                canDeleteSessions ? 'bg-emerald-500 border-emerald-500' : 'bg-slate-200 border-slate-200'
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors duration-200 ${
+                canDeleteSessions ? 'bg-emerald-500' : 'bg-slate-300'
               }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md border border-slate-200 transition-transform duration-200 ${
                   canDeleteSessions ? 'translate-x-4' : 'translate-x-0'
                 }`}
               />
