@@ -493,9 +493,8 @@ export function WorkoutsTab({
           </div>
 
           {/* Per-trainee delete permission toggle
-              RTL note: DOM order determines visual order in reverse.
-              DOM: [label] [pill]  →  Visual RTL: [pill] [label]
-              The pill lands on the LEFT (RTL end), label on the RIGHT (RTL start). */}
+              RTL-safe: knob uses absolute positioning (physical coords, unaffected by dir="rtl")
+              DOM: [label][pill] → visual RTL: [pill][label] — toggle on left, label on right */}
           <button
             id="toggle-trainee-delete-permission"
             onClick={handleTogglePermission}
@@ -507,16 +506,20 @@ export function WorkoutsTab({
                 : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
             } ${isTogglingPermission ? 'opacity-60 cursor-not-allowed' : ''}`}
           >
-            {/* Label — DOM-first → visually rightmost in RTL ✓ */}
+            {/* Label — DOM-first → visually rightmost in RTL */}
             <span className="whitespace-nowrap">הרשאת מחיקה למתאמן</span>
-            {/* Toggle pill — DOM-last → visually leftmost in RTL ✓ */}
+
+            {/* Toggle pill — DOM-last → visually leftmost in RTL
+                dir="ltr" ensures the flex inside doesn't reverse
+                Knob uses absolute+physical coords so RTL has no effect */}
             <span
-              className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors duration-200 ${
+              dir="ltr"
+              className={`relative inline-flex flex-shrink-0 h-5 w-9 rounded-full transition-colors duration-200 ${
                 canDeleteSessions ? 'bg-emerald-500' : 'bg-slate-300'
               }`}
             >
               <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md border border-slate-200 transition-transform duration-200 ${
+                className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
                   canDeleteSessions ? 'translate-x-4' : 'translate-x-0'
                 }`}
               />
