@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { CalendarDays, Check, Clock, Dumbbell, Edit2, GripVertical, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
 import type { WorkoutSessionWithSets, WorkoutTemplateWithExercises, TemplateExercise } from '../../../types';
 import type { ExerciseForm, SetState } from './types';
+import { ConfirmModal } from '../../../components/ui/ConfirmModal';
 
 // ─── Drag state ──────────────────────────────────────────────────────────────
 
@@ -93,6 +94,7 @@ export function WorkoutsTab({
     }
   };
 
+
   // Which template is currently in "edit mode"
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
 
@@ -122,6 +124,25 @@ export function WorkoutsTab({
 
   const invalidateCache = (templateId: string) =>
     setLocalBlocks(prev => { const n = { ...prev }; delete n[templateId]; return n; });
+
+  // ─── Confirm-delete state (declared after exitEditMode & invalidateCache) ─────
+  type PendingDelete =
+    | { type: 'template'; id: string; name: string }
+    | { type: 'session';  id: string };
+
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+
+  const handleConfirmDelete = () => {
+    if (!pendingDelete) return;
+    if (pendingDelete.type === 'template') {
+      deleteTemplate(pendingDelete.id);
+      invalidateCache(pendingDelete.id);
+      exitEditMode();
+    } else {
+      deleteSession(pendingDelete.id);
+    }
+    setPendingDelete(null);
+  };
 
   // ── Block-level drag handlers ─────────────────────────────────────────────
 
@@ -240,13 +261,7 @@ export function WorkoutsTab({
                     /* Save + Delete when in edit mode */
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => {
-                          if (confirm('האם אתה בטוח שברצונך למחוק תוכנית אימון זו?')) {
-                            deleteTemplate(template.id);
-                            invalidateCache(template.id);
-                            exitEditMode();
-                          }
-                        }}
+                        onClick={() => setPendingDelete({ type: 'template', id: template.id, name: template.name })}
                         className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1.5 rounded-lg transition-colors"
                       >
                         <Trash2 size={14} /> מחק
@@ -563,11 +578,7 @@ export function WorkoutsTab({
                         </div>
                       )}
                       <button
-                        onClick={() => {
-                          if (confirm('האם אתה בטוח שברצונך למחוק אימון זה?')) {
-                            deleteSession(session.id);
-                          }
-                        }}
+                        onClick={() => setPendingDelete({ type: 'session', id: session.id })}
                         className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors flex-shrink-0"
                       >
                         <Trash2 size={16} />
@@ -605,6 +616,24 @@ export function WorkoutsTab({
           </div>
         )}
       </div>
+
+      {/* ─── Confirm Delete Modal ──────────────────────────────────────────── */}
+      <ConfirmModal
+        isOpen={pendingDelete !== null}
+        title={
+          pendingDelete?.type === 'template'
+            ? 'מחיקת תוכנית אימון'
+            : 'מחיקת אימון'
+        }
+        message={
+          pendingDelete?.type === 'template'
+            ? `האם אתה בטוח שברצונך למחוק את תוכנית "${(pendingDelete as { type: 'template'; id: string; name: string })?.name}"? פעולה זו תמחק גם את כל התרגילים שבה.`
+            : 'האם אתה בטוח שברצונך למחוק אימון זה? פעולה זו אינה הפיכה.'
+        }
+        confirmLabel="מחק"
+        onClose={() => setPendingDelete(null)}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

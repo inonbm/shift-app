@@ -4,6 +4,7 @@ import { Dumbbell, Clock, Loader2, Play, Edit2, Trash2, X, Save, AlertCircle, Ch
 import { useWorkoutStore } from '../../stores/workoutStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useTraineeStore } from '../../stores/traineeStore';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import type { WorkoutSession, SessionSet, WorkoutTemplate, TemplateExercise } from '../../types';
 
 // ─── Edit Session Modal ───────────────────────────────────────────────────────
@@ -245,6 +246,7 @@ interface SessionCardProps {
 
 function SessionCard({ session, templateName, template, canDelete, onDelete }: SessionCardProps) {
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const dateObj = new Date(session.performed_at);
 
@@ -280,11 +282,7 @@ function SessionCard({ session, templateName, template, canDelete, onDelete }: S
             </button>
             {canDelete && (
               <button
-                onClick={() => {
-                  if (confirm('האם אתה בטוח שברצונך למחוק אימון זה?')) {
-                    onDelete(session.id);
-                  }
-                }}
+                onClick={() => setDeleteOpen(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-700 rounded-lg text-sm font-bold transition-colors border border-red-100"
                 title="מחק אימון"
               >
@@ -323,6 +321,7 @@ function SessionCard({ session, templateName, template, canDelete, onDelete }: S
         )}
       </div>
 
+      {/* Edit modal */}
       {editOpen && (
         <EditSessionModal
           session={session}
@@ -330,6 +329,19 @@ function SessionCard({ session, templateName, template, canDelete, onDelete }: S
           onClose={() => setEditOpen(false)}
         />
       )}
+
+      {/* Confirm delete modal */}
+      <ConfirmModal
+        isOpen={deleteOpen}
+        title="מחיקת אימון"
+        message="האם אתה בטוח שברצונך למחוק אימון זה? פעולה זו אינה הפיכה."
+        confirmLabel="מחק"
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={() => {
+          onDelete(session.id);
+          setDeleteOpen(false);
+        }}
+      />
     </>
   );
 }
