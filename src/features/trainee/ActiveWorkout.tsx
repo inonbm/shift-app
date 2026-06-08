@@ -15,6 +15,8 @@ export function ActiveWorkout() {
   const [setsData, setSetsData] = useState<Record<string, Record<number, { reps: number; weight: number; isDone: boolean }>>>({});
   const [isSetsInitialized, setIsSetsInitialized] = useState(false);
   const activeSessionIdRef = useRef<string | null>(null);
+  // Guard: prevents concurrent logSession / updateSession calls
+  const isSavingRef = useRef(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const fetchedRef = useRef(false);
@@ -115,7 +117,9 @@ export function ActiveWorkout() {
     }
 
     const timeoutId = setTimeout(async () => {
+      if (isSavingRef.current) return; // already saving — skip this tick
       try {
+        isSavingRef.current = true;
         setIsSaving(true);
         if (activeSessionIdRef.current) {
           await updateSession(activeSessionIdRef.current, { notes, sets: finalSets });
@@ -131,6 +135,7 @@ export function ActiveWorkout() {
       } catch (err) {
         console.error('Failed to auto-save:', err);
       } finally {
+        isSavingRef.current = false;
         setIsSaving(false);
       }
     }, 1500); // 1.5s debounce
@@ -196,7 +201,15 @@ export function ActiveWorkout() {
     });
 
     if (finalSets.length > 0 || notes) {
+      if (isSavingRef.current) {
+        // Auto-save is mid-flight — wait briefly then navigate
+        // The auto-save will complete with the correct data
+        navigate('/workouts');
+        return;
+      }
       try {
+        isSavingRef.current = true;
+        setIsSaving(true);
         if (activeSessionIdRef.current) {
           await updateSession(activeSessionIdRef.current, { notes, sets: finalSets });
         } else {
@@ -209,6 +222,9 @@ export function ActiveWorkout() {
         }
       } catch (err) {
         console.error('Failed to save on exit:', err);
+      } finally {
+        isSavingRef.current = false;
+        setIsSaving(false);
       }
     }
     navigate('/workouts');

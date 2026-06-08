@@ -296,44 +296,53 @@ function SessionCard({ session, templateName, template, canDelete, onDelete }: S
         {/* Expanded details — grouped by exercise (same as trainer view) */}
         {expanded && session.sets.length > 0 && (
           <div className="border-t border-slate-100 px-4 py-3 space-y-2">
-            {template ? (
-              // ── Primary: use template exercise order ──────────────────────
-              [...template.exercises]
-                .sort((a, b) => a.order_index - b.order_index)
-                .map(ex => {
-                  const exerciseSets = [...session.sets]
-                    .filter(s => s.exercise_id === ex.id)
-                    .sort((a, b) => a.set_number - b.set_number);
-                  if (exerciseSets.length === 0) return null;
-                  return (
-                    <div
-                      key={ex.id}
-                      className="bg-white rounded-lg p-3 border border-slate-100 flex flex-col md:flex-row gap-3 md:items-center"
-                    >
-                      <span className="font-bold text-slate-700 min-w-[150px] text-sm">{ex.exercise_name}</span>
-                      <div className="flex flex-wrap gap-2">
-                        {exerciseSets.map(set => (
-                          <span
-                            key={set.id}
-                            className="bg-slate-50 px-2 py-1 rounded text-xs text-slate-600 font-mono border border-slate-200 shadow-sm"
-                          >
-                            סט {set.set_number}: <strong className="text-slate-800">{set.weight_kg}kg</strong> × {set.reps_done}
-                          </span>
-                        ))}
+            {(() => {
+              // Deduplicate by (exercise_id, set_number) — keeps last occurrence.
+              // Guards against duplicate DB records from any historical double-save bug.
+              const seen = new Map<string, typeof session.sets[0]>();
+              for (const s of session.sets) {
+                seen.set(`${s.exercise_id}:${s.set_number}`, s);
+              }
+              const dedupedSets = Array.from(seen.values());
+
+              if (template) {
+                // ── Primary: use template exercise order ──────────────────────
+                return [...template.exercises]
+                  .sort((a, b) => a.order_index - b.order_index)
+                  .map(ex => {
+                    const exerciseSets = dedupedSets
+                      .filter(s => s.exercise_id === ex.id)
+                      .sort((a, b) => a.set_number - b.set_number);
+                    if (exerciseSets.length === 0) return null;
+                    return (
+                      <div
+                        key={ex.id}
+                        className="bg-white rounded-lg p-3 border border-slate-100 flex flex-col md:flex-row gap-3 md:items-center"
+                      >
+                        <span className="font-bold text-slate-700 min-w-[150px] text-sm">{ex.exercise_name}</span>
+                        <div className="flex flex-wrap gap-2">
+                          {exerciseSets.map(set => (
+                            <span
+                              key={set.id}
+                              className="bg-slate-50 px-2 py-1 rounded text-xs text-slate-600 font-mono border border-slate-200 shadow-sm"
+                            >
+                              סט {set.set_number}: <strong className="text-slate-800">{set.weight_kg}kg</strong> × {set.reps_done}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
-            ) : (
+                    );
+                  });
+              }
+
               // ── Fallback: group by exercise_id when template was deleted ──
-              Object.entries(
-                session.sets.reduce<Record<string, typeof session.sets>>((acc, s) => {
-                  const key = s.exercise_id ?? 'unknown';
-                  if (!acc[key]) acc[key] = [];
-                  acc[key].push(s);
-                  return acc;
-                }, {})
-              ).map(([exerciseId, sets]) => {
+              const byExercise: Record<string, typeof dedupedSets> = {};
+              for (const s of dedupedSets) {
+                const key = s.exercise_id ?? 'unknown';
+                if (!byExercise[key]) byExercise[key] = [];
+                byExercise[key].push(s);
+              }
+              return Object.entries(byExercise).map(([exerciseId, sets]) => {
                 const exName = sets[0]?.exercise?.exercise_name ?? 'תרגיל';
                 const sortedSets = [...sets].sort((a, b) => a.set_number - b.set_number);
                 return (
@@ -354,8 +363,8 @@ function SessionCard({ session, templateName, template, canDelete, onDelete }: S
                     </div>
                   </div>
                 );
-              })
-            )}
+              });
+            })()}
             {session.notes && (
               <p className="text-xs text-slate-500 italic pt-1">הערות: {session.notes}</p>
             )}
