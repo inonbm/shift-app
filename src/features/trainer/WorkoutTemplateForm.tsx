@@ -57,7 +57,7 @@ export function WorkoutTemplateForm() {
           order_index: idx
         }))
       });
-      navigate('/trainer');
+      navigate(`/trainer/trainees/${traineeId}`, { state: { tab: 'workouts' } });
     } catch (err) {
       console.error(err);
     }
@@ -67,7 +67,7 @@ export function WorkoutTemplateForm() {
     <div className="max-w-3xl mx-auto space-y-6 pb-12">
       <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
         <button 
-          onClick={() => navigate('/trainer')}
+          onClick={() => navigate(initialTraineeId ? `/trainer/trainees/${initialTraineeId}` : '/trainer', { state: { tab: 'workouts' } })}
           className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
         >
           <ArrowRight size={24} />
