@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { AlertCircle, ChevronRight, Edit2, KeyRound, Loader2, MessageCircle, Trash2 } from 'lucide-react';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { useDietStore } from '../../stores/dietStore';
@@ -23,6 +23,7 @@ import type { AddForms, ExerciseForm, FoodSearch, MealEdit, Tab } from './traine
 export function TraineeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const { currentTrainee, fetchTraineeById, updateTraineeData, updateCanDeleteSessions, isLoading: isTraineeLoading, error: traineeError } = useTraineeStore();
   const { meals, fetchDiet, generateDiet, isLoading: isDietLoading, error: dietError } = useDietStore();
@@ -30,7 +31,8 @@ export function TraineeDetail() {
   const { foods, fetchFoods } = useFoodStore();
   const { fetchTrackingForDate } = useTrackingStore();
 
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const initialTab = (location.state as { tab?: Tab } | null)?.tab ?? 'overview';
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<TraineeData>>({});
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
