@@ -2,7 +2,7 @@ import type { Food, GeneratedMeal, MealFoodOption, MealSuitability } from '../ty
 import { MEAL_DISTRIBUTION } from '../types';
 
 const MEAL_SUITABILITY_MAP: Record<number, MealSuitability[]> = {
-  0: ['breakfast', 'snack'],
+  0: ['breakfast'],
   1: ['lunch'],
   2: ['snack'],
   3: ['dinner']
@@ -306,16 +306,27 @@ export function generateDietPlan(
       // 3. Fallback: suitability only (drop grouping + anti-repetition)
       if (suitable.length >= 1) return suitable;
 
-      // 4. Ultimate fallback: all foods in category (shouldn't happen)
+      // 4. Ultimate fallback: all foods in category (only when NO foods
+      //    are marked suitable for this meal — log a warning so trainers
+      //    know they should fix their food tags).
+      console.warn(
+        `[dietGenerator] No foods marked suitable for meal tags [${allowedTags}] ` +
+        `in category with ${categoryFoods.length} items — falling back to all.`
+      );
       return categoryFoods;
     };
 
     // ── CROSS-MACRO CONTAMINATION PRE-FILTER ──────────────────────────────
-    // Remove foods whose incidental macros would wreck the meal balance.
-    // Applied BEFORE random selection so we only pick from clean foods.
-    const cleanCarbFoods = filterCrossMacro(carbFoods, T_c, 'carbs_per_100g', T_p, T_c, T_f);
-    const cleanProteinFoods = filterCrossMacro(proteinFoods, T_p, 'protein_per_100g', T_p, T_c, T_f);
-    const cleanFatFoods = filterCrossMacro(fatFoods, T_f, 'fats_per_100g', T_p, T_c, T_f);
+    // Apply suitability FIRST, then remove foods whose incidental macros
+    // would wreck the meal balance. This ensures unsuitable foods never
+    // enter the pool via the cross-macro fallback path.
+    const suitableCarbFoods = filterSuitability(carbFoods);
+    const suitableProteinFoods = filterSuitability(proteinFoods);
+    const suitableFatFoods = filterSuitability(fatFoods);
+
+    const cleanCarbFoods = filterCrossMacro(suitableCarbFoods, T_c, 'carbs_per_100g', T_p, T_c, T_f);
+    const cleanProteinFoods = filterCrossMacro(suitableProteinFoods, T_p, 'protein_per_100g', T_p, T_c, T_f);
+    const cleanFatFoods = filterCrossMacro(suitableFatFoods, T_f, 'fats_per_100g', T_p, T_c, T_f);
 
     const selectedCarbFoods = selectRandomUnique(getFoodsForMeal(cleanCarbFoods), 4);
     const selectedProteinFoods = selectRandomUnique(getFoodsForMeal(cleanProteinFoods), 4);
