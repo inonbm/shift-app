@@ -375,5 +375,25 @@ export function recalculateDietTotals<T extends {
   target_carbs?: number;
   target_fat?: number;
 }>(meals: T[]): T[] {
-  return meals.map(meal => meal);
+  return meals.map(meal => {
+    // The three option arrays are mutually-exclusive "OR" choices: a trainee
+    // picks ONE item per category. Use index [0] as the representative sample
+    // to compute the displayed meal totals.
+    const repProtein = meal.protein_options[0];
+    const repCarb = meal.carb_options[0];
+    const repFat = meal.fat_options[0];
+
+    const totalProtein = (repProtein?.protein_g ?? 0) + (repCarb?.protein_g ?? 0) + (repFat?.protein_g ?? 0);
+    const totalCarbs = (repProtein?.carbs_g ?? 0) + (repCarb?.carbs_g ?? 0) + (repFat?.carbs_g ?? 0);
+    const totalFat = (repProtein?.fat_g ?? 0) + (repCarb?.fat_g ?? 0) + (repFat?.fat_g ?? 0);
+    const totalCalories = (repProtein?.calories ?? 0) + (repCarb?.calories ?? 0) + (repFat?.calories ?? 0);
+
+    return {
+      ...meal,
+      target_calories: Math.round(totalCalories),
+      target_protein: Math.round(totalProtein),
+      target_carbs: Math.round(totalCarbs),
+      target_fat: Math.round(totalFat),
+    };
+  });
 }
