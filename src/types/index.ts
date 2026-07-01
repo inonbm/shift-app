@@ -162,11 +162,33 @@ export interface FreeEntry {
   fats?: number;
 }
 
+/** A single food item selection within a meal category */
+export interface MealItemSelection {
+  food_id: string;
+  food_name: string;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  grams: number;
+}
+
+/** Per-meal selection state: which item was picked for each macro category */
+export interface MealCategorySelections {
+  carb?: MealItemSelection | null;
+  protein?: MealItemSelection | null;
+  fat?: MealItemSelection | null;
+}
+
+/** Map of meal_id → category selections */
+export type MealSelections = Record<string, MealCategorySelections>;
+
 export interface DailyTracking {
   id: string;
   trainee_id: string;
   date: string;
   completed_meals: string[];
+  meal_selections: MealSelections;
   free_entries: FreeEntry[];
   created_at: string;
   updated_at: string;

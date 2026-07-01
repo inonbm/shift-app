@@ -1,5 +1,5 @@
-import { CalendarDays, CheckCheck, Loader2, Plus } from 'lucide-react';
-import type { DailyTracking, GeneratedMeal } from '../../../types';
+import { CalendarDays, CheckCheck, Loader2, Plus, Utensils } from 'lucide-react';
+import type { DailyTracking, GeneratedMeal, MealCategorySelections } from '../../../types';
 
 interface NutritionLogTabProps {
   logDate: string;
@@ -9,6 +9,12 @@ interface NutritionLogTabProps {
   meals: GeneratedMeal[];
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  carb: 'פחמימה',
+  protein: 'חלבון',
+  fat: 'שומן',
+};
+
 export function NutritionLogTab({
   logDate,
   setLogDate,
@@ -16,6 +22,23 @@ export function NutritionLogTab({
   dayLog,
   meals,
 }: NutritionLogTabProps) {
+  // Build list of meals with partial selections (not fully completed)
+  const partialMeals: { mealId: string; meal: GeneratedMeal | undefined; selections: MealCategorySelections }[] = [];
+  if (dayLog?.meal_selections) {
+    for (const [mealId, sel] of Object.entries(dayLog.meal_selections)) {
+      // Only show as partial if NOT in completed_meals
+      if (!dayLog.completed_meals.includes(mealId) && (sel.carb || sel.protein || sel.fat)) {
+        partialMeals.push({ mealId, meal: meals.find(m => m.id === mealId), selections: sel });
+      }
+    }
+  }
+
+  const hasAnyData = dayLog && (
+    dayLog.completed_meals.length > 0 || 
+    partialMeals.length > 0 || 
+    (dayLog.free_entries && dayLog.free_entries.length > 0)
+  );
+
   return (
 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-6">
   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
@@ -40,7 +63,7 @@ export function NutritionLogTab({
       <Loader2 size={32} className="animate-spin mb-3" />
       <p>טוען נתונים...</p>
     </div>
-  ) : !dayLog || (dayLog.completed_meals.length === 0 && (!dayLog.free_entries || dayLog.free_entries.length === 0)) ? (
+  ) : !hasAnyData ? (
     <div className="text-center py-12">
       <CalendarDays size={40} className="mx-auto text-slate-200 mb-3" />
       <p className="text-slate-500">לא הוזנו נתונים ביום זה.</p>
@@ -53,9 +76,9 @@ export function NutritionLogTab({
           <CheckCheck className="text-emerald-500" size={18} />
           ארוחות שסומנו (תפריט)
         </h3>
-        {dayLog.completed_meals.length > 0 ? (
+        {dayLog!.completed_meals.length > 0 ? (
           <div className="space-y-2">
-            {dayLog.completed_meals.map(mealId => {
+            {dayLog!.completed_meals.map(mealId => {
               const meal = meals.find(m => m.id === mealId);
               return (
                 <div key={mealId} className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 text-sm flex justify-between items-center">
@@ -68,6 +91,34 @@ export function NutritionLogTab({
         ) : (
           <p className="text-sm text-slate-400 italic">לא סומנו ארוחות מהתפריט.</p>
         )}
+
+        {/* Partial Selections */}
+        {partialMeals.length > 0 && (
+          <div className="mt-4">
+            <h4 className="flex items-center gap-2 font-bold text-slate-600 mb-3 pb-2 border-b border-slate-100 text-sm">
+              <Utensils className="text-blue-500" size={16} />
+              בחירות חלקיות
+            </h4>
+            <div className="space-y-2">
+              {partialMeals.map(({ mealId, meal, selections }) => (
+                <div key={mealId} className="bg-blue-50/50 p-3 rounded-xl border border-blue-100 text-sm">
+                  <div className="font-bold text-blue-800 mb-2">{meal?.meal_name || 'ארוחה לא ידועה'}</div>
+                  <div className="flex flex-wrap gap-2">
+                    {(['carb', 'protein', 'fat'] as const).map(cat => {
+                      const item = selections[cat];
+                      if (!item) return null;
+                      return (
+                        <span key={cat} className="bg-white px-2 py-1 rounded-lg border border-blue-100 text-xs text-blue-700 font-medium">
+                          {CATEGORY_LABELS[cat]}: {item.food_name} ({item.calories} קק״ל)
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Free Entries */}
@@ -76,9 +127,9 @@ export function NutritionLogTab({
           <Plus className="text-orange-500" size={18} />
           הזנה חופשית (חריגות)
         </h3>
-        {dayLog.free_entries && dayLog.free_entries.length > 0 ? (
+        {dayLog!.free_entries && dayLog!.free_entries.length > 0 ? (
           <div className="space-y-2">
-            {dayLog.free_entries.map(entry => (
+            {dayLog!.free_entries.map(entry => (
               <div key={entry.id} className="bg-orange-50/50 p-3 rounded-xl border border-orange-100 text-sm">
                 <div className="flex justify-between items-start mb-1">
                   <span className="font-bold text-orange-800">{entry.name}</span>
