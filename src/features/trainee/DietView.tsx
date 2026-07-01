@@ -21,7 +21,7 @@ export function DietView() {
   const { user } = useAuthStore();
   const { fetchMyData, currentTrainee, isLoading: isTraineeLoading } = useTraineeStore();
   const { fetchDiet, meals, isLoading: isDietLoading } = useDietStore();
-  const { todaysTracking, fetchTodaysTracking, toggleMealCompletion, addFreeEntry, removeFreeEntry } = useTrackingStore();
+  const { todaysTracking, fetchTodaysTracking, toggleMealCompletion, toggleItemSelection, addFreeEntry, removeFreeEntry } = useTrackingStore();
 
   const [expandedMeals, setExpandedMeals] = useState<Record<string, boolean>>({});
   const [selections, setSelections] = useState<Record<string, MealSelection>>({});
@@ -52,6 +52,21 @@ export function DietView() {
     }
   }, [user?.id, fetchDiet]);
 
+  // Sync local selections state from persisted meal_selections
+  useEffect(() => {
+    if (todaysTracking?.meal_selections) {
+      const restored: Record<string, MealSelection> = {};
+      for (const [mealId, cats] of Object.entries(todaysTracking.meal_selections)) {
+        restored[mealId] = {
+          carb: cats.carb ? (cats.carb as unknown as MealFoodOption) : undefined,
+          protein: cats.protein ? (cats.protein as unknown as MealFoodOption) : undefined,
+          fat: cats.fat ? (cats.fat as unknown as MealFoodOption) : undefined,
+        };
+      }
+      setSelections(restored);
+    }
+  }, [todaysTracking?.meal_selections]);
+
   const toggleMeal = (mealId: string) => {
     setExpandedMeals(prev => ({
       ...prev,
@@ -60,13 +75,18 @@ export function DietView() {
   };
 
   const handleSelectOption = (mealId: string, category: keyof MealSelection, option: MealFoodOption) => {
+    // Optimistic local update
     setSelections(prev => ({
       ...prev,
       [mealId]: {
         ...(prev[mealId] || {}),
-        [category]: prev[mealId]?.[category]?.food_id === option.food_id ? undefined : option // Toggle off if clicked again
+        [category]: prev[mealId]?.[category]?.food_id === option.food_id ? undefined : option
       }
     }));
+    // Persist to DB and update progress
+    if (user?.id) {
+      toggleItemSelection(user.id, mealId, category, option);
+    }
   };
 
   const handleGenerateRecipe = async (mealId: string) => {
@@ -107,11 +127,17 @@ export function DietView() {
 
   const data = currentTrainee?.trainee_data;
 
-  // Calculations for Progress Bar
+  // Calculations for Progress Bar — now includes per-item selections
   const targetCalories = data?.goal_calories || 0;
   const consumedFromMeals = meals.reduce((sum, meal) => {
+    // If meal is fully completed, use meal target values
     if (todaysTracking?.completed_meals.includes(meal.id)) {
       return sum + meal.target_calories;
+    }
+    // Otherwise sum individual item selections
+    const sel = todaysTracking?.meal_selections?.[meal.id];
+    if (sel) {
+      return sum + (sel.carb?.calories || 0) + (sel.protein?.calories || 0) + (sel.fat?.calories || 0);
     }
     return sum;
   }, 0);
@@ -125,14 +151,26 @@ export function DietView() {
   const targetCarbs = data?.carbs_grams || 0;
   const targetFat = data?.fat_grams || 0;
 
-  const consumedProtein = meals.reduce((sum, meal) => todaysTracking?.completed_meals.includes(meal.id) ? sum + meal.target_protein : sum, 0) 
-    + (todaysTracking?.free_entries?.reduce((sum, entry) => sum + (entry.protein || 0), 0) || 0);
+  const consumedProtein = meals.reduce((sum, meal) => {
+    if (todaysTracking?.completed_meals.includes(meal.id)) return sum + meal.target_protein;
+    const sel = todaysTracking?.meal_selections?.[meal.id];
+    if (sel) return sum + (sel.carb?.protein_g || 0) + (sel.protein?.protein_g || 0) + (sel.fat?.protein_g || 0);
+    return sum;
+  }, 0) + (todaysTracking?.free_entries?.reduce((sum, entry) => sum + (entry.protein || 0), 0) || 0);
     
-  const consumedCarbs = meals.reduce((sum, meal) => todaysTracking?.completed_meals.includes(meal.id) ? sum + meal.target_carbs : sum, 0)
-    + (todaysTracking?.free_entries?.reduce((sum, entry) => sum + (entry.carbs || 0), 0) || 0);
+  const consumedCarbs = meals.reduce((sum, meal) => {
+    if (todaysTracking?.completed_meals.includes(meal.id)) return sum + meal.target_carbs;
+    const sel = todaysTracking?.meal_selections?.[meal.id];
+    if (sel) return sum + (sel.carb?.carbs_g || 0) + (sel.protein?.carbs_g || 0) + (sel.fat?.carbs_g || 0);
+    return sum;
+  }, 0) + (todaysTracking?.free_entries?.reduce((sum, entry) => sum + (entry.carbs || 0), 0) || 0);
     
-  const consumedFat = meals.reduce((sum, meal) => todaysTracking?.completed_meals.includes(meal.id) ? sum + meal.target_fat : sum, 0)
-    + (todaysTracking?.free_entries?.reduce((sum, entry) => sum + (entry.fats || 0), 0) || 0);
+  const consumedFat = meals.reduce((sum, meal) => {
+    if (todaysTracking?.completed_meals.includes(meal.id)) return sum + meal.target_fat;
+    const sel = todaysTracking?.meal_selections?.[meal.id];
+    if (sel) return sum + (sel.carb?.fat_g || 0) + (sel.protein?.fat_g || 0) + (sel.fat?.fat_g || 0);
+    return sum;
+  }, 0) + (todaysTracking?.free_entries?.reduce((sum, entry) => sum + (entry.fats || 0), 0) || 0);
 
   const handleAddFreeEntry = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -331,7 +369,17 @@ export function DietView() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (user?.id) toggleMealCompletion(user.id, meal.id);
+                      if (user?.id) {
+                        // If uncompleting, clear local selections too
+                        if (isCompleted) {
+                          setSelections(prev => {
+                            const next = { ...prev };
+                            delete next[meal.id];
+                            return next;
+                          });
+                        }
+                        toggleMealCompletion(user.id, meal.id);
+                      }
                     }}
                     className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${
                       isCompleted 
