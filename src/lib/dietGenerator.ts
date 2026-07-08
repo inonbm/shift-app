@@ -234,6 +234,27 @@ function resolveOptions(
 
 const ROUNDING_BIAS_FACTOR = 1.0;
 
+// Filter by dietary preferences
+export const filterByPreferences = (foods: Food[], dietaryPreferences?: DietaryPreference[]) => {
+  if (!dietaryPreferences || dietaryPreferences.length === 0) return foods;
+  
+  return foods.filter(food => {
+    // Tags on food
+    const tags = food.tags || [];
+    
+    for (const pref of dietaryPreferences) {
+      if (pref === 'vegetarian' && (tags.includes('meat') || tags.includes('poultry') || tags.includes('fish'))) return false;
+      if (pref === 'vegan' && (tags.includes('meat') || tags.includes('poultry') || tags.includes('fish') || tags.includes('dairy') || tags.includes('eggs'))) return false;
+      if (pref === 'lactose_free' && tags.includes('dairy')) return false;
+      if (pref === 'gluten_free' && tags.includes('gluten')) return false;
+      if (pref === 'no_fish' && tags.includes('fish')) return false;
+      if (pref === 'no_eggs' && tags.includes('eggs')) return false;
+      if (pref === 'no_red_meat' && tags.includes('meat')) return false;
+    }
+    return true;
+  });
+};
+
 export function generateDietPlan(
   traineeId: string,
   _dailyCalories: number,
@@ -265,28 +286,7 @@ export function generateDietPlan(
     });
   };
 
-  // Filter by dietary preferences
-  const filterByPreferences = (foods: Food[]) => {
-    if (!dietaryPreferences || dietaryPreferences.length === 0) return foods;
-    
-    return foods.filter(food => {
-      // Tags on food
-      const tags = food.tags || [];
-      
-      for (const pref of dietaryPreferences) {
-        if (pref === 'vegetarian' && (tags.includes('meat') || tags.includes('poultry') || tags.includes('fish'))) return false;
-        if (pref === 'vegan' && (tags.includes('meat') || tags.includes('poultry') || tags.includes('fish') || tags.includes('dairy') || tags.includes('eggs'))) return false;
-        if (pref === 'lactose_free' && tags.includes('dairy')) return false;
-        if (pref === 'gluten_free' && tags.includes('gluten')) return false;
-        if (pref === 'no_fish' && tags.includes('fish')) return false;
-        if (pref === 'no_eggs' && tags.includes('eggs')) return false;
-        if (pref === 'no_red_meat' && tags.includes('meat')) return false;
-      }
-      return true;
-    });
-  };
-
-  const filteredAvailableFoods = filterByPreferences(availableFoods);
+  const filteredAvailableFoods = filterByPreferences(availableFoods, dietaryPreferences);
 
   const carbFoods = sortFoodsByLifestyle(filteredAvailableFoods.filter(f => f.primary_category === 'carb'));
   const proteinFoods = sortFoodsByLifestyle(filteredAvailableFoods.filter(f => f.primary_category === 'protein'));

@@ -4,69 +4,8 @@ import { useFoodStore } from '../../stores/foodStore';
 import type { Food, MealFoodOption, MeasurementUnit } from '../../types';
 import { MEASUREMENT_UNIT_LABELS } from '../../types';
 
-// ── Helpers (shared with dietGenerator.ts) ────────────────────────────────
-const WEIGHT_BASED_UNITS: ReadonlySet<string> = new Set(['g', 'ml']);
-const isWeightBased = (food: Food) => WEIGHT_BASED_UNITS.has(food.measurement_unit);
-const macroRef = (food: Food): number =>
-  food.serving_size > 0 ? food.serving_size : (isWeightBased(food) ? 100 : 1);
-
-type MacroKey = 'protein_per_100g' | 'carbs_per_100g' | 'fats_per_100g';
-
-interface SwapCandidate {
-  food: Food;
-  quantity: number;
-  protein_g: number;
-  carbs_g: number;
-  fat_g: number;
-  calories: number;
-}
-
-// ── Portion caps ──────────────────────────────────────────────────────────
-const MAX_UNIT_ITEMS = 8;
-const MAX_WEIGHT_G = 600;
-
-function computeSwapCandidate(
-  food: Food,
-  targetMacroGrams: number,
-  macroKey: MacroKey
-): SwapCandidate | null {
-  const macroPer = food[macroKey];
-  if (macroPer <= 0) return null;
-
-  const ref = macroRef(food);
-  const rawQuantity = (targetMacroGrams * ref) / macroPer;
-
-  // Apply portion caps
-  const cap = isWeightBased(food) ? MAX_WEIGHT_G : MAX_UNIT_ITEMS;
-  if (rawQuantity > cap || rawQuantity <= 0) return null;
-
-  // Smart rounding
-  let quantity: number;
-  if (isWeightBased(food)) {
-    quantity = rawQuantity < 20
-      ? Math.round(rawQuantity)
-      : food.primary_category === 'fat'
-        ? Math.round(rawQuantity / 5) * 5
-        : Math.round(rawQuantity / 10) * 10;
-  } else {
-    quantity = Math.round(rawQuantity);
-    if (quantity <= 0) quantity = 1;
-  }
-
-  const protein_g = (food.protein_per_100g / ref) * quantity;
-  const carbs_g = (food.carbs_per_100g / ref) * quantity;
-  const fat_g = (food.fats_per_100g / ref) * quantity;
-  const calories = (food.calories_per_100g / ref) * quantity;
-
-  return {
-    food,
-    quantity: Math.round(quantity * 10) / 10,
-    protein_g: Math.round(protein_g * 10) / 10,
-    carbs_g: Math.round(carbs_g * 10) / 10,
-    fat_g: Math.round(fat_g * 10) / 10,
-    calories: Math.round(calories),
-  };
-}
+import { computeSwapCandidate } from '../../lib/nutrition';
+import type { MacroKey, SwapCandidate } from '../../lib/nutrition';
 
 // ── Component ─────────────────────────────────────────────────────────────
 
