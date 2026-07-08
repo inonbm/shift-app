@@ -71,7 +71,7 @@ export const useDietStore = create<DietState>((set) => ({
         throw new Error('No foods found in database. Please add foods first.');
       }
 
-      const { goal_calories, protein_grams, carbs_grams, fat_grams, is_busy_lifestyle } = trainee.trainee_data;
+      const { goal_calories, protein_grams, carbs_grams, fat_grams, is_busy_lifestyle, num_meals, dietary_preferences } = trainee.trainee_data;
 
       // 1. Generate the plan using the core algorithm
       const generatedMeals = generateDietPlan(
@@ -81,7 +81,9 @@ export const useDietStore = create<DietState>((set) => ({
         carbs_grams,
         fat_grams,
         foods,
-        is_busy_lifestyle ?? false
+        is_busy_lifestyle ?? false,
+        num_meals ?? 4,
+        dietary_preferences ?? []
       );
 
       // Clean the temporary UUIDs before inserting into Supabase

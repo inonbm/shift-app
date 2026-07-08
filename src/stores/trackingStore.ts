@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import type { DailyTracking, FreeEntry, MealFoodOption, MealSelections, MealItemSelection } from '../types';
+import { normaliseSelectionArray } from '../types';
 
 type CategoryKey = 'carb' | 'protein' | 'fat';
 
@@ -12,6 +13,8 @@ interface TrackingState {
   fetchTodaysTracking: (traineeId: string) => Promise<void>;
   toggleMealCompletion: (traineeId: string, mealId: string) => Promise<void>;
   toggleItemSelection: (traineeId: string, mealId: string, category: CategoryKey, item: MealFoodOption) => Promise<void>;
+  /** Replace a specific food item with a new one (swap) */
+  swapItem: (traineeId: string, mealId: string, category: CategoryKey, oldFoodId: string, newItem: MealFoodOption) => Promise<void>;
   addFreeEntry: (traineeId: string, entry: Omit<FreeEntry, 'id'>) => Promise<void>;
   removeFreeEntry: (traineeId: string, entryId: string) => Promise<void>;
   fetchTrackingForDate: (traineeId: string, date: string) => Promise<DailyTracking | null>;
@@ -93,9 +96,14 @@ export const useTrackingStore = create<TrackingState>((set, get) => ({
         ? { ...currentSelections[mealId] } 
         : {};
       
-      // Toggle: if same food_id is already selected, deselect it; otherwise select the new one
-      if (mealSel[category]?.food_id === item.food_id) {
-        mealSel[category] = null;
+      // Normalise to arrays (handles legacy single-item data)
+      const currentItems = normaliseSelectionArray(mealSel[category]);
+      
+      // Toggle: if same food_id is already in the array, remove it; otherwise add
+      const existingIdx = currentItems.findIndex(s => s.food_id === item.food_id);
+      let newItems: MealItemSelection[];
+      if (existingIdx >= 0) {
+        newItems = currentItems.filter((_, i) => i !== existingIdx);
       } else {
         const selectionItem: MealItemSelection = {
           food_id: item.food_id,
@@ -106,23 +114,25 @@ export const useTrackingStore = create<TrackingState>((set, get) => ({
           fat_g: item.fat_g,
           grams: item.grams,
         };
-        mealSel[category] = selectionItem;
+        newItems = [...currentItems, selectionItem];
       }
       
+      mealSel[category] = newItems.length > 0 ? newItems : null;
       currentSelections[mealId] = mealSel;
       
-      // Check if all 3 categories are now selected → auto-complete the meal
+      // Auto-complete: at least 1 item in each category
       let completedMeals = currentTracking 
         ? [...currentTracking.completed_meals] 
         : [];
       
-      const allSelected = Boolean(mealSel.carb) && Boolean(mealSel.protein) && Boolean(mealSel.fat);
+      const allSelected = normaliseSelectionArray(mealSel.carb).length > 0
+        && normaliseSelectionArray(mealSel.protein).length > 0
+        && normaliseSelectionArray(mealSel.fat).length > 0;
       const isAlreadyCompleted = completedMeals.includes(mealId);
       
       if (allSelected && !isAlreadyCompleted) {
         completedMeals.push(mealId);
       } else if (!allSelected && isAlreadyCompleted) {
-        // A category was deselected → remove from completed
         completedMeals = completedMeals.filter(id => id !== mealId);
       }
       
@@ -144,6 +154,68 @@ export const useTrackingStore = create<TrackingState>((set, get) => ({
       set({ todaysTracking: data, isLoading: false });
     } catch (error: any) {
       console.error('Failed to toggle item selection:', error);
+      set({ isLoading: false, error: error.message });
+    }
+  },
+
+  swapItem: async (traineeId: string, mealId: string, category: CategoryKey, oldFoodId: string, newItem: MealFoodOption) => {
+    try {
+      set({ isLoading: true, error: null });
+      
+      const today = new Date().toISOString().split('T')[0];
+      const currentTracking = get().todaysTracking;
+      
+      const currentSelections: MealSelections = currentTracking?.meal_selections 
+        ? { ...currentTracking.meal_selections } 
+        : {};
+      
+      const mealSel = currentSelections[mealId] 
+        ? { ...currentSelections[mealId] } 
+        : {};
+      
+      const currentItems = normaliseSelectionArray(mealSel[category]);
+      
+      // Replace the old item with the new one, or add if not found
+      const newSelection: MealItemSelection = {
+        food_id: newItem.food_id,
+        food_name: newItem.food_name,
+        calories: newItem.calories,
+        protein_g: newItem.protein_g,
+        carbs_g: newItem.carbs_g,
+        fat_g: newItem.fat_g,
+        grams: newItem.grams,
+      };
+      
+      const idx = currentItems.findIndex(s => s.food_id === oldFoodId);
+      let newItems: MealItemSelection[];
+      if (idx >= 0) {
+        newItems = [...currentItems];
+        newItems[idx] = newSelection;
+      } else {
+        newItems = [...currentItems, newSelection];
+      }
+      
+      mealSel[category] = newItems;
+      currentSelections[mealId] = mealSel;
+      
+      // Upsert
+      const { data, error } = await supabase
+        .from('daily_tracking')
+        .upsert({
+          trainee_id: traineeId,
+          date: today,
+          completed_meals: currentTracking?.completed_meals || [],
+          meal_selections: currentSelections,
+          free_entries: currentTracking?.free_entries || []
+        }, { onConflict: 'trainee_id,date' })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      set({ todaysTracking: data, isLoading: false });
+    } catch (error: any) {
+      console.error('Failed to swap item:', error);
       set({ isLoading: false, error: error.message });
     }
   },

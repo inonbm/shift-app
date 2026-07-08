@@ -26,6 +26,8 @@ interface CreateTraineeInput {
   is_available_4_plus_days?: boolean;
   protein_factor?: number;
   fat_percentage?: number;
+  num_meals?: number;
+  dietary_preferences?: string[];
 }
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
@@ -401,6 +403,8 @@ serve(async (req) => {
       is_available_4_plus_days: input.is_available_4_plus_days ?? false,
       protein_factor: proteinFactor,
       fat_percentage: fatPercentage,
+      num_meals: input.num_meals ?? 4,
+      dietary_preferences: input.dietary_preferences ?? [],
       updated_at: new Date().toISOString(),
     };
 

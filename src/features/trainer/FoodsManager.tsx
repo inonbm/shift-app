@@ -315,6 +315,7 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
     carbs_per_100g: 0,
     fats_per_100g: 0,
     suitable_for: ['breakfast', 'lunch', 'snack', 'dinner'] as MealSuitability[],
+    tags: [] as string[],
   });
 
   useEffect(() => {
@@ -330,6 +331,7 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
           carbs_per_100g: food.carbs_per_100g,
           fats_per_100g: food.fats_per_100g,
           suitable_for: food.suitable_for || ['breakfast', 'lunch', 'snack', 'dinner'],
+          tags: food.tags || [],
         });
       } else {
         setFormData({
@@ -342,6 +344,7 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
           carbs_per_100g: 0,
           fats_per_100g: 0,
           suitable_for: ['breakfast', 'lunch', 'snack', 'dinner'],
+          tags: [],
         });
       }
       setError(null);
@@ -585,6 +588,35 @@ function FoodModal({ isOpen, onClose, food }: FoodModalProps) {
                     />
                     <span className="text-sm font-medium text-slate-700">ארוחת ביניים</span>
                   </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">תגיות תזונה</label>
+                <div className="flex flex-wrap gap-4 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  {[
+                    { value: 'meat', label: 'בשר אדום' },
+                    { value: 'poultry', label: 'עוף' },
+                    { value: 'fish', label: 'דגים' },
+                    { value: 'dairy', label: 'חלבי / לקטוז' },
+                    { value: 'eggs', label: 'ביצים' },
+                    { value: 'gluten', label: 'גלוטן' }
+                  ].map(tag => (
+                    <label key={tag.value} className="flex items-center gap-2 cursor-pointer">
+                      <input 
+                        type="checkbox"
+                        checked={formData.tags?.includes(tag.value)}
+                        onChange={(e) => {
+                          const newTags = e.target.checked 
+                            ? [...(formData.tags || []), tag.value]
+                            : (formData.tags || []).filter(t => t !== tag.value);
+                          setFormData(prev => ({ ...prev, tags: newTags }));
+                        }}
+                        className="w-4 h-4 text-emerald-500 rounded border-slate-300 focus:ring-emerald-500"
+                      />
+                      <span className="text-sm font-medium text-slate-700">{tag.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
             </div>

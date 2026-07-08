@@ -21,6 +21,8 @@ export type FoodCategory = 'protein' | 'carb' | 'fat' | 'vegetable' | 'other';
 
 export type MeasurementUnit = 'g' | 'ml' | 'unit' | 'slice' | 'scoop' | 'cup' | 'tbsp' | 'tsp';
 
+export type DietaryPreference = 'vegetarian' | 'vegan' | 'lactose_free' | 'gluten_free' | 'no_fish' | 'no_eggs' | 'no_red_meat';
+
 // --- Database Row Types ---
 
 export interface Profile {
@@ -53,6 +55,8 @@ export interface TraineeData {
   protein_factor?: number;
   fat_percentage?: number;
   can_delete_sessions?: boolean;
+  num_meals?: number;
+  dietary_preferences?: DietaryPreference[];
   updated_at: string;
 }
 
@@ -74,6 +78,7 @@ export interface Food {
   carbs_per_100g: number;
   fats_per_100g: number;
   suitable_for?: MealSuitability[];
+  tags?: string[];
   created_by: string;
   created_at: string;
 }
@@ -171,17 +176,33 @@ export interface MealItemSelection {
   carbs_g: number;
   fat_g: number;
   grams: number;
+  /** Optional: what percentage of the category target this item represents */
+  portion_percent?: number;
 }
 
-/** Per-meal selection state: which item was picked for each macro category */
+/**
+ * Per-meal selection state: which items were picked for each macro category.
+ * Supports multiple sources per category (e.g. tuna + eggs for protein).
+ * BACKWARD COMPAT: legacy data may have a single MealItemSelection instead of
+ * an array — consumers must normalise via `normaliseSelections()`.
+ */
 export interface MealCategorySelections {
-  carb?: MealItemSelection | null;
-  protein?: MealItemSelection | null;
-  fat?: MealItemSelection | null;
+  carb?: MealItemSelection[] | MealItemSelection | null;
+  protein?: MealItemSelection[] | MealItemSelection | null;
+  fat?: MealItemSelection[] | MealItemSelection | null;
 }
 
 /** Map of meal_id → category selections */
 export type MealSelections = Record<string, MealCategorySelections>;
+
+/** Normalise a category value to always be an array (handles legacy single-item data) */
+export function normaliseSelectionArray(
+  val: MealItemSelection[] | MealItemSelection | null | undefined
+): MealItemSelection[] {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  return [val];
+}
 
 export interface DailyTracking {
   id: string;
@@ -212,6 +233,8 @@ export interface CreateTraineeInput {
   is_available_4_plus_days?: boolean;
   protein_factor?: number;
   fat_percentage?: number;
+  num_meals?: number;
+  dietary_preferences?: DietaryPreference[];
 }
 
 export interface CreateFoodInput {
@@ -252,13 +275,49 @@ export const GOAL_CALORIE_ADJUSTMENTS: Record<Goal, number> = {
   maintenance: 0,
 };
 
-/** Meal distribution as percentage of daily calories */
-export const MEAL_DISTRIBUTION = [
-  { index: 0, name: 'ארוחה 1', percentage: 0.20 },
-  { index: 1, name: 'ארוחה 2', percentage: 0.30 },
-  { index: 2, name: 'ארוחה 3', percentage: 0.15 },
-  { index: 3, name: 'ארוחה 4', percentage: 0.35 },
-] as const;
+export interface MealDistributionConfig {
+  index: number;
+  name: string;
+  percentage: number;
+}
+
+/** Meal distribution as percentage of daily calories based on total number of meals */
+export function getMealDistribution(numMeals: number = 4): MealDistributionConfig[] {
+  if (numMeals === 3) {
+    return [
+      { index: 0, name: 'ארוחה 1', percentage: 0.30 },
+      { index: 1, name: 'ארוחה 2', percentage: 0.40 },
+      { index: 2, name: 'ארוחה 3', percentage: 0.30 },
+    ];
+  }
+  if (numMeals === 5) {
+    return [
+      { index: 0, name: 'ארוחה 1', percentage: 0.20 },
+      { index: 1, name: 'ארוחה 2', percentage: 0.25 },
+      { index: 2, name: 'ארוחה 3', percentage: 0.15 },
+      { index: 3, name: 'ארוחה 4', percentage: 0.25 },
+      { index: 4, name: 'ארוחה 5', percentage: 0.15 },
+    ];
+  }
+  if (numMeals === 6) {
+    return [
+      { index: 0, name: 'ארוחה 1', percentage: 0.15 },
+      { index: 1, name: 'ארוחה 2', percentage: 0.20 },
+      { index: 2, name: 'ארוחה 3', percentage: 0.15 },
+      { index: 3, name: 'ארוחה 4', percentage: 0.20 },
+      { index: 4, name: 'ארוחה 5', percentage: 0.15 },
+      { index: 5, name: 'ארוחה 6', percentage: 0.15 },
+    ];
+  }
+  
+  // Default: 4 meals
+  return [
+    { index: 0, name: 'ארוחה 1', percentage: 0.20 },
+    { index: 1, name: 'ארוחה 2', percentage: 0.30 },
+    { index: 2, name: 'ארוחה 3', percentage: 0.15 },
+    { index: 3, name: 'ארוחה 4', percentage: 0.35 },
+  ];
+}
 
 // --- Hebrew Labels ---
 
