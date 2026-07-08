@@ -14,15 +14,18 @@ describe('normaliseSelectionArray', () => {
       food_id: '1',
       food_name: 'Test Food',
       calories: 100,
-      grams: 50
+      grams: 50,
+      protein_g: 10,
+      carbs_g: 10,
+      fat_g: 5
     };
     expect(normaliseSelectionArray(singleItem)).toEqual([singleItem]);
   });
 
   it('should return the same array if given an array', () => {
     const arr: MealItemSelection[] = [
-      { food_id: '1', food_name: 'Food A', calories: 100, grams: 50 },
-      { food_id: '2', food_name: 'Food B', calories: 200, grams: 100 }
+      { food_id: '1', food_name: 'Food A', calories: 100, grams: 50, protein_g: 10, carbs_g: 10, fat_g: 5 },
+      { food_id: '2', food_name: 'Food B', calories: 200, grams: 100, protein_g: 20, carbs_g: 20, fat_g: 10 }
     ];
     expect(normaliseSelectionArray(arr)).toEqual(arr);
   });

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { X, Search, ArrowLeftRight, Loader2, AlertCircle } from 'lucide-react';
 import { useFoodStore } from '../../stores/foodStore';
-import type { Food, MealFoodOption, MeasurementUnit } from '../../types';
+import type { MealFoodOption, MeasurementUnit } from '../../types';
 import { MEASUREMENT_UNIT_LABELS } from '../../types';
 
 import { computeSwapCandidate } from '../../lib/nutrition';
