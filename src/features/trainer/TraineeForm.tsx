@@ -46,7 +46,9 @@ export function TraineeForm() {
     goal: 'maintenance',
     is_busy_lifestyle: false,
     protein_factor: 2.0,
-    fat_percentage: 25
+    fat_percentage: 25,
+    num_meals: 4,
+    dietary_preferences: []
   });
 
   // Calculate live nutrition values based on form state
@@ -396,8 +398,71 @@ export function TraineeForm() {
               <div dir="rtl" className="min-w-0 flex-1 text-right">
                 <p className="text-sm font-bold leading-snug text-amber-800 whitespace-normal break-words">מתאמן עסוק / סטודנט ⏱️</p>
                 <p className="mt-1 text-xs leading-relaxed text-amber-600 whitespace-normal break-words">(המערכת תעדיף לשבץ מאכלים מהירים וללא בישול כמו כריכים, מעדנים, פריכיות וכו')</p>
-              </div>
             </label>
+
+            {/* Meal Count */}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mt-4">
+              <label className="block text-sm font-bold text-slate-800 mb-3">מספר ארוחות ביום</label>
+              <div className="flex bg-slate-100 p-1.5 rounded-xl">
+                {[3, 4, 5, 6].map(count => (
+                  <button
+                    key={count}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, num_meals: count })}
+                    className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${
+                      (formData.num_meals || 4) === count
+                        ? 'bg-white text-purple-600 shadow-sm border border-slate-200'
+                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                    }`}
+                  >
+                    {count} ארוחות
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Dietary Preferences */}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mt-4">
+              <label className="block text-sm font-bold text-slate-800 mb-3">העדפות תזונה והגבלות</label>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: 'vegetarian', label: 'צמחוני' },
+                  { value: 'vegan', label: 'טבעוני' },
+                  { value: 'lactose_free', label: 'רגישות ללקטוז' },
+                  { value: 'gluten_free', label: 'ללא גלוטן' },
+                  { value: 'no_fish', label: 'ללא דגים' },
+                  { value: 'no_eggs', label: 'ללא ביצים' },
+                  { value: 'no_red_meat', label: 'ללא בשר אדום' }
+                ].map(pref => {
+                  const isSelected = formData.dietary_preferences?.includes(pref.value as any);
+                  return (
+                    <label key={pref.value} className="flex items-center gap-2 cursor-pointer group">
+                      <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                        isSelected ? 'bg-purple-500 border-purple-500 text-white' : 'border-slate-300 bg-white group-hover:border-purple-400'
+                      }`}>
+                        {isSelected && <CheckCircle2 size={14} />}
+                      </div>
+                      <span className={`text-sm ${isSelected ? 'font-medium text-slate-800' : 'text-slate-600 group-hover:text-slate-800'}`}>
+                        {pref.label}
+                      </span>
+                      <input
+                        type="checkbox"
+                        className="hidden"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          const prefs = formData.dietary_preferences || [];
+                          if (e.target.checked) {
+                            setFormData({ ...formData, dietary_preferences: [...prefs, pref.value as any] });
+                          } else {
+                            setFormData({ ...formData, dietary_preferences: prefs.filter(p => p !== pref.value) });
+                          }
+                        }}
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
 
             {/* Workout Assignment Flags (Male only) */}
             {formData.gender === 'male' && (

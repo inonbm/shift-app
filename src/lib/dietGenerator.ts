@@ -1,5 +1,5 @@
-import type { Food, GeneratedMeal, MealFoodOption, MealSuitability } from '../types';
-import { MEAL_DISTRIBUTION } from '../types';
+import type { Food, GeneratedMeal, MealFoodOption, MealSuitability, DietaryPreference } from '../types';
+import { getMealDistribution } from '../types';
 
 const MEAL_SUITABILITY_MAP: Record<number, MealSuitability[]> = {
   0: ['breakfast'],
@@ -241,7 +241,9 @@ export function generateDietPlan(
   dailyCarbs: number,
   dailyFat: number,
   availableFoods: Food[],
-  isBusyLifestyle: boolean = false
+  isBusyLifestyle: boolean = false,
+  numMeals: number = 4,
+  dietaryPreferences: DietaryPreference[] = []
 ): GeneratedMeal[] {
   const meals: GeneratedMeal[] = [];
 
@@ -263,13 +265,37 @@ export function generateDietPlan(
     });
   };
 
-  const carbFoods = sortFoodsByLifestyle(availableFoods.filter(f => f.primary_category === 'carb'));
-  const proteinFoods = sortFoodsByLifestyle(availableFoods.filter(f => f.primary_category === 'protein'));
-  const fatFoods = sortFoodsByLifestyle(availableFoods.filter(f => f.primary_category === 'fat'));
+  // Filter by dietary preferences
+  const filterByPreferences = (foods: Food[]) => {
+    if (!dietaryPreferences || dietaryPreferences.length === 0) return foods;
+    
+    return foods.filter(food => {
+      // Tags on food
+      const tags = food.tags || [];
+      
+      for (const pref of dietaryPreferences) {
+        if (pref === 'vegetarian' && (tags.includes('meat') || tags.includes('poultry') || tags.includes('fish'))) return false;
+        if (pref === 'vegan' && (tags.includes('meat') || tags.includes('poultry') || tags.includes('fish') || tags.includes('dairy') || tags.includes('eggs'))) return false;
+        if (pref === 'lactose_free' && tags.includes('dairy')) return false;
+        if (pref === 'gluten_free' && tags.includes('gluten')) return false;
+        if (pref === 'no_fish' && tags.includes('fish')) return false;
+        if (pref === 'no_eggs' && tags.includes('eggs')) return false;
+        if (pref === 'no_red_meat' && tags.includes('meat')) return false;
+      }
+      return true;
+    });
+  };
+
+  const filteredAvailableFoods = filterByPreferences(availableFoods);
+
+  const carbFoods = sortFoodsByLifestyle(filteredAvailableFoods.filter(f => f.primary_category === 'carb'));
+  const proteinFoods = sortFoodsByLifestyle(filteredAvailableFoods.filter(f => f.primary_category === 'protein'));
+  const fatFoods = sortFoodsByLifestyle(filteredAvailableFoods.filter(f => f.primary_category === 'fat'));
 
   let previousMealFoodIds: string[] = [];
 
-  for (const distribution of MEAL_DISTRIBUTION) {
+  const mealDistribution = getMealDistribution(numMeals);
+  for (const distribution of mealDistribution) {
     const p = distribution.percentage;
     const T_c = dailyCarbs * p * ROUNDING_BIAS_FACTOR;
     const T_p = dailyProtein * p * ROUNDING_BIAS_FACTOR;

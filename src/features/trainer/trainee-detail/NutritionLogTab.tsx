@@ -1,5 +1,6 @@
 import { CalendarDays, CheckCheck, Loader2, Plus, Utensils } from 'lucide-react';
 import type { DailyTracking, GeneratedMeal, MealCategorySelections } from '../../../types';
+import { normaliseSelectionArray } from '../../../types';
 
 interface NutritionLogTabProps {
   logDate: string;
@@ -26,8 +27,11 @@ export function NutritionLogTab({
   const partialMeals: { mealId: string; meal: GeneratedMeal | undefined; selections: MealCategorySelections }[] = [];
   if (dayLog?.meal_selections) {
     for (const [mealId, sel] of Object.entries(dayLog.meal_selections)) {
-      // Only show as partial if NOT in completed_meals
-      if (!dayLog.completed_meals.includes(mealId) && (sel.carb || sel.protein || sel.fat)) {
+      // Only show as partial if NOT in completed_meals and has at least one selection
+      const hasAnySelection = normaliseSelectionArray(sel.carb).length > 0
+        || normaliseSelectionArray(sel.protein).length > 0
+        || normaliseSelectionArray(sel.fat).length > 0;
+      if (!dayLog.completed_meals.includes(mealId) && hasAnySelection) {
         partialMeals.push({ mealId, meal: meals.find(m => m.id === mealId), selections: sel });
       }
     }
@@ -105,13 +109,13 @@ export function NutritionLogTab({
                   <div className="font-bold text-blue-800 mb-2">{meal?.meal_name || 'ארוחה לא ידועה'}</div>
                   <div className="flex flex-wrap gap-2">
                     {(['carb', 'protein', 'fat'] as const).map(cat => {
-                      const item = selections[cat];
-                      if (!item) return null;
-                      return (
-                        <span key={cat} className="bg-white px-2 py-1 rounded-lg border border-blue-100 text-xs text-blue-700 font-medium">
+                      const items = normaliseSelectionArray(selections[cat]);
+                      if (items.length === 0) return null;
+                      return items.map(item => (
+                        <span key={`${cat}-${item.food_id}`} className="bg-white px-2 py-1 rounded-lg border border-blue-100 text-xs text-blue-700 font-medium">
                           {CATEGORY_LABELS[cat]}: {item.food_name} ({item.calories} קק״ל)
                         </span>
-                      );
+                      ));
                     })}
                   </div>
                 </div>

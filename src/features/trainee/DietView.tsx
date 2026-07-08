@@ -1,27 +1,30 @@
 import { useEffect, useState } from 'react';
-import { Flame, Dumbbell, Droplet, Activity, ChevronDown, ChevronUp, Coffee, Loader2, Sparkles, CheckCircle2, Circle, Plus, Trash2, X, Info } from 'lucide-react';
+import { Flame, Dumbbell, Droplet, Activity, ChevronDown, ChevronUp, Coffee, Loader2, Sparkles, CheckCircle2, Circle, Plus, Trash2, X, Info, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { useTraineeStore } from '../../stores/traineeStore';
 import { useDietStore } from '../../stores/dietStore';
 import { useTrackingStore } from '../../stores/trackingStore';
-import type { MealFoodOption } from '../../types';
-import { MEASUREMENT_UNIT_LABELS } from '../../types';
+import { useFoodStore } from '../../stores/foodStore';
+import type { MealFoodOption, MealItemSelection } from '../../types';
+import { MEASUREMENT_UNIT_LABELS, normaliseSelectionArray } from '../../types';
 import { RecipeModal } from './RecipeModal';
+import { SwapModal } from './SwapModal';
 import { generateRecipeWithAI } from '../../lib/gemini';
 import { MacroProgressBar } from '../../components/ui/MacroProgressBar';
 
-// Helper type for selection
+// Helper type for selection — now supports multiple items per category
 type MealSelection = {
-  carb?: MealFoodOption;
-  protein?: MealFoodOption;
-  fat?: MealFoodOption;
+  carb?: MealFoodOption[];
+  protein?: MealFoodOption[];
+  fat?: MealFoodOption[];
 };
 
 export function DietView() {
   const { user } = useAuthStore();
   const { fetchMyData, currentTrainee, isLoading: isTraineeLoading } = useTraineeStore();
   const { fetchDiet, meals, isLoading: isDietLoading } = useDietStore();
-  const { todaysTracking, fetchTodaysTracking, toggleMealCompletion, toggleItemSelection, addFreeEntry, removeFreeEntry } = useTrackingStore();
+  const { todaysTracking, fetchTodaysTracking, toggleMealCompletion, toggleItemSelection, swapItem, addFreeEntry, removeFreeEntry } = useTrackingStore();
+  const { fetchFoods } = useFoodStore();
 
   const [expandedMeals, setExpandedMeals] = useState<Record<string, boolean>>({});
   const [selections, setSelections] = useState<Record<string, MealSelection>>({});
@@ -30,11 +33,24 @@ export function DietView() {
   const [isFreeEntryModalOpen, setIsFreeEntryModalOpen] = useState(false);
   const [freeEntryForm, setFreeEntryForm] = useState({ name: '', calories: '', protein: '', carbs: '', fats: '' });
 
+  // Swap Modal State
+  const [swapModalState, setSwapModalState] = useState<{
+    isOpen: boolean;
+    mealId: string;
+    category: 'protein' | 'carb' | 'fat';
+    originalOption: MealFoodOption;
+  } | null>(null);
+
   useEffect(() => {
     if (user?.id) {
       fetchTodaysTracking(user.id);
     }
   }, [user?.id, fetchTodaysTracking]);
+
+  // Prefetch foods for swap modal
+  useEffect(() => {
+    fetchFoods();
+  }, [fetchFoods]);
   
   // AI Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -52,15 +68,15 @@ export function DietView() {
     }
   }, [user?.id, fetchDiet]);
 
-  // Sync local selections state from persisted meal_selections
+  // Sync local selections state from persisted meal_selections (backward-compatible)
   useEffect(() => {
     if (todaysTracking?.meal_selections) {
       const restored: Record<string, MealSelection> = {};
       for (const [mealId, cats] of Object.entries(todaysTracking.meal_selections)) {
         restored[mealId] = {
-          carb: cats.carb ? (cats.carb as unknown as MealFoodOption) : undefined,
-          protein: cats.protein ? (cats.protein as unknown as MealFoodOption) : undefined,
-          fat: cats.fat ? (cats.fat as unknown as MealFoodOption) : undefined,
+          carb: normaliseSelectionArray(cats.carb).map(s => s as unknown as MealFoodOption),
+          protein: normaliseSelectionArray(cats.protein).map(s => s as unknown as MealFoodOption),
+          fat: normaliseSelectionArray(cats.fat).map(s => s as unknown as MealFoodOption),
         };
       }
       setSelections(restored);
@@ -75,23 +91,49 @@ export function DietView() {
   };
 
   const handleSelectOption = (mealId: string, category: keyof MealSelection, option: MealFoodOption) => {
-    // Optimistic local update
-    setSelections(prev => ({
-      ...prev,
-      [mealId]: {
-        ...(prev[mealId] || {}),
-        [category]: prev[mealId]?.[category]?.food_id === option.food_id ? undefined : option
-      }
-    }));
+    // Optimistic local update — toggle in array
+    setSelections(prev => {
+      const currentArr = prev[mealId]?.[category] || [];
+      const exists = currentArr.some(o => o.food_id === option.food_id);
+      return {
+        ...prev,
+        [mealId]: {
+          ...(prev[mealId] || {}),
+          [category]: exists
+            ? currentArr.filter(o => o.food_id !== option.food_id)
+            : [...currentArr, option]
+        }
+      };
+    });
     // Persist to DB and update progress
     if (user?.id) {
       toggleItemSelection(user.id, mealId, category, option);
     }
   };
 
+  const handleSwap = (newOption: MealFoodOption) => {
+    if (!swapModalState || !user?.id) return;
+    const { mealId, category, originalOption } = swapModalState;
+    
+    // Optimistic local update: replace old with new
+    setSelections(prev => {
+      const currentArr = prev[mealId]?.[category] || [];
+      const idx = currentArr.findIndex(o => o.food_id === originalOption.food_id);
+      const newArr = [...currentArr];
+      if (idx >= 0) newArr[idx] = newOption;
+      else newArr.push(newOption);
+      return {
+        ...prev,
+        [mealId]: { ...(prev[mealId] || {}), [category]: newArr }
+      };
+    });
+    
+    swapItem(user.id, mealId, category, originalOption.food_id, newOption);
+  };
+
   const handleGenerateRecipe = async (mealId: string) => {
     const mealSelection = selections[mealId];
-    if (!mealSelection || !mealSelection.carb || !mealSelection.protein || !mealSelection.fat) return;
+    if (!mealSelection || !mealSelection.carb?.length || !mealSelection.protein?.length || !mealSelection.fat?.length) return;
 
     setIsModalOpen(true);
     setIsAILoading(true);
@@ -100,9 +142,9 @@ export function DietView() {
 
     try {
       const ingredients = [
-        { name: mealSelection.carb.food_name, grams: mealSelection.carb.grams },
-        { name: mealSelection.protein.food_name, grams: mealSelection.protein.grams },
-        { name: mealSelection.fat.food_name, grams: mealSelection.fat.grams },
+        ...mealSelection.carb.map(c => ({ name: c.food_name, grams: c.grams })),
+        ...mealSelection.protein.map(p => ({ name: p.food_name, grams: p.grams })),
+        ...mealSelection.fat.map(f => ({ name: f.food_name, grams: f.grams })),
       ];
       
       const recipe = await generateRecipeWithAI(ingredients);
@@ -127,19 +169,21 @@ export function DietView() {
 
   const data = currentTrainee?.trainee_data;
 
-  // Calculations for Progress Bar — now includes per-item selections
+  // Calculations for Progress Bar — sums ALL selected items per category
   const targetCalories = data?.goal_calories || 0;
+  
+  // Helper to sum a field across all selected items in all categories
+  const sumSelections = (sel: typeof todaysTracking.meal_selections[string] | undefined, field: 'calories' | 'protein_g' | 'carbs_g' | 'fat_g') => {
+    if (!sel) return 0;
+    const sumArr = (arr: MealItemSelection[]) => arr.reduce((s, item) => s + (item[field] || 0), 0);
+    return sumArr(normaliseSelectionArray(sel.carb)) + sumArr(normaliseSelectionArray(sel.protein)) + sumArr(normaliseSelectionArray(sel.fat));
+  };
+  
   const consumedFromMeals = meals.reduce((sum, meal) => {
-    // If meal is fully completed, use meal target values
     if (todaysTracking?.completed_meals.includes(meal.id)) {
       return sum + meal.target_calories;
     }
-    // Otherwise sum individual item selections
-    const sel = todaysTracking?.meal_selections?.[meal.id];
-    if (sel) {
-      return sum + (sel.carb?.calories || 0) + (sel.protein?.calories || 0) + (sel.fat?.calories || 0);
-    }
-    return sum;
+    return sum + sumSelections(todaysTracking?.meal_selections?.[meal.id], 'calories');
   }, 0);
   const consumedFromFree = todaysTracking?.free_entries?.reduce((sum, entry) => sum + entry.calories, 0) || 0;
   const totalConsumed = consumedFromMeals + consumedFromFree;
@@ -153,23 +197,17 @@ export function DietView() {
 
   const consumedProtein = meals.reduce((sum, meal) => {
     if (todaysTracking?.completed_meals.includes(meal.id)) return sum + meal.target_protein;
-    const sel = todaysTracking?.meal_selections?.[meal.id];
-    if (sel) return sum + (sel.carb?.protein_g || 0) + (sel.protein?.protein_g || 0) + (sel.fat?.protein_g || 0);
-    return sum;
+    return sum + sumSelections(todaysTracking?.meal_selections?.[meal.id], 'protein_g');
   }, 0) + (todaysTracking?.free_entries?.reduce((sum, entry) => sum + (entry.protein || 0), 0) || 0);
     
   const consumedCarbs = meals.reduce((sum, meal) => {
     if (todaysTracking?.completed_meals.includes(meal.id)) return sum + meal.target_carbs;
-    const sel = todaysTracking?.meal_selections?.[meal.id];
-    if (sel) return sum + (sel.carb?.carbs_g || 0) + (sel.protein?.carbs_g || 0) + (sel.fat?.carbs_g || 0);
-    return sum;
+    return sum + sumSelections(todaysTracking?.meal_selections?.[meal.id], 'carbs_g');
   }, 0) + (todaysTracking?.free_entries?.reduce((sum, entry) => sum + (entry.carbs || 0), 0) || 0);
     
   const consumedFat = meals.reduce((sum, meal) => {
     if (todaysTracking?.completed_meals.includes(meal.id)) return sum + meal.target_fat;
-    const sel = todaysTracking?.meal_selections?.[meal.id];
-    if (sel) return sum + (sel.carb?.fat_g || 0) + (sel.protein?.fat_g || 0) + (sel.fat?.fat_g || 0);
-    return sum;
+    return sum + sumSelections(todaysTracking?.meal_selections?.[meal.id], 'fat_g');
   }, 0) + (todaysTracking?.free_entries?.reduce((sum, entry) => sum + (entry.fats || 0), 0) || 0);
 
   const handleAddFreeEntry = async (e: React.FormEvent) => {
@@ -218,40 +256,85 @@ export function DietView() {
     bgClass: string, 
     labelClass: string 
   }) => {
-    const selectedOption = selections[mealId]?.[categoryKey];
+    const selectedArr = selections[mealId]?.[categoryKey] || [];
+    const selectedIds = new Set(selectedArr.map(o => o.food_id));
 
     return (
       <div className={`p-4 rounded-xl border border-slate-100 ${bgClass}`}>
         <h4 className={`text-sm font-bold mb-3 border-b border-white/40 pb-2 ${labelClass}`}>{title}</h4>
         <div className="space-y-3">
           {options.map((opt, i) => {
-            const isSelected = selectedOption?.food_id === opt.food_id;
+            const isSelected = selectedIds.has(opt.food_id);
             return (
-              <button 
-                key={i} 
-                onClick={() => handleSelectOption(mealId, categoryKey, opt)}
-                className={`w-full text-right bg-white/60 p-3 rounded-lg flex items-start gap-3 relative overflow-hidden group transition-all border outline-none
-                  ${isSelected ? 'border-emerald-400 bg-white ring-2 ring-emerald-400/20 shadow-md transform scale-[1.02]' : 'border-white/50 hover:bg-white hover:border-slate-200'}
-                `}
-              >
-                <div className={`w-1 h-full absolute right-0 top-0 ${isSelected ? 'bg-emerald-500' : labelClass.replace('text-', 'bg-')} opacity-60`} />
-                <div className="flex-1 pr-2">
-                  <p className={`font-bold text-sm leading-tight ${isSelected ? 'text-emerald-700' : 'text-slate-800'}`}>
-                    {opt.food_name}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-500 font-medium">
-                    <span className="bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">
-                      {opt.grams} {(!opt.unit || opt.unit === 'g') ? 'גרם' : MEASUREMENT_UNIT_LABELS[opt.unit]}
-                    </span>
-                    <span className="text-slate-400">({opt.calories} קק״ל)</span>
+              <div key={i} className="relative">
+                <button 
+                  onClick={() => handleSelectOption(mealId, categoryKey, opt)}
+                  className={`w-full text-right bg-white/60 p-3 rounded-lg flex items-start gap-3 relative overflow-hidden group transition-all border outline-none
+                    ${isSelected ? 'border-emerald-400 bg-white ring-2 ring-emerald-400/20 shadow-md transform scale-[1.02]' : 'border-white/50 hover:bg-white hover:border-slate-200'}
+                  `}
+                >
+                  <div className={`w-1 h-full absolute right-0 top-0 ${isSelected ? 'bg-emerald-500' : labelClass.replace('text-', 'bg-')} opacity-60`} />
+                  {/* Checkbox indicator */}
+                  <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 transition-all
+                    ${isSelected ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 bg-white'}
+                  `}>
+                    {isSelected && <CheckCircle2 size={14} />}
                   </div>
-                </div>
-              </button>
+                  <div className="flex-1 pr-1">
+                    <p className={`font-bold text-sm leading-tight ${isSelected ? 'text-emerald-700' : 'text-slate-800'}`}>
+                      {opt.food_name}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-500 font-medium">
+                      <span className="bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">
+                        {opt.grams} {(!opt.unit || opt.unit === 'g') ? 'גרם' : MEASUREMENT_UNIT_LABELS[opt.unit]}
+                      </span>
+                      <span className="text-slate-400">({opt.calories} קק״ל)</span>
+                    </div>
+                  </div>
+                </button>
+                {/* Swap button — only on selected items */}
+                {isSelected && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSwapModalState({
+                        isOpen: true,
+                        mealId,
+                        category: categoryKey,
+                        originalOption: opt,
+                      });
+                    }}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-slate-100 hover:bg-purple-100 text-slate-400 hover:text-purple-600 transition-colors z-10"
+                    title="החלף פריט"
+                  >
+                    <RefreshCw size={14} />
+                  </button>
+                )}
+              </div>
             );
           })}
           {options.length === 0 && (
             <p className="text-xs text-slate-400 italic">לא נבחרו מקורות</p>
           )}
+          {/* Add additional source button */}
+          <button
+            onClick={() => {
+              // Open swap modal in "add" mode — use the first option as reference for target macros
+              const refOption = options[0];
+              if (refOption) {
+                setSwapModalState({
+                  isOpen: true,
+                  mealId,
+                  category: categoryKey,
+                  originalOption: refOption,
+                });
+              }
+            }}
+            className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-slate-500 hover:text-emerald-600 bg-white/40 hover:bg-white border border-dashed border-slate-200 hover:border-emerald-300 rounded-lg p-2 transition-all"
+          >
+            <Plus size={14} />
+            הוסף מקור נוסף
+          </button>
         </div>
       </div>
     );
@@ -353,7 +436,7 @@ export function DietView() {
         {[...meals].sort((a, b) => a.meal_index - b.meal_index).map((meal) => {
           const isExpanded = expandedMeals[meal.id] ?? false; 
           const mealSelection = selections[meal.id];
-          const hasSelectedAllThree = Boolean(mealSelection?.carb && mealSelection?.protein && mealSelection?.fat);
+          const hasSelectedAllThree = Boolean(mealSelection?.carb?.length && mealSelection?.protein?.length && mealSelection?.fat?.length);
           const isCompleted = todaysTracking?.completed_meals.includes(meal.id) || false;
           
           return (
@@ -636,6 +719,17 @@ export function DietView() {
         error={aiError}
         onClose={() => setIsModalOpen(false)}
       />
+
+      {/* Smart Swap Modal */}
+      {swapModalState && (
+        <SwapModal
+          isOpen={swapModalState.isOpen}
+          onClose={() => setSwapModalState(null)}
+          originalOption={swapModalState.originalOption}
+          category={swapModalState.category}
+          onSwap={handleSwap}
+        />
+      )}
 
     </div>
   );
