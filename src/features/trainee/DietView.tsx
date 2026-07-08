@@ -173,7 +173,7 @@ export function DietView() {
   const targetCalories = data?.goal_calories || 0;
   
   // Helper to sum a field across all selected items in all categories
-  const sumSelections = (sel: typeof todaysTracking.meal_selections[string] | undefined, field: 'calories' | 'protein_g' | 'carbs_g' | 'fat_g') => {
+  const sumSelections = (sel: NonNullable<typeof todaysTracking>['meal_selections'][string] | undefined, field: 'calories' | 'protein_g' | 'carbs_g' | 'fat_g') => {
     if (!sel) return 0;
     const sumArr = (arr: MealItemSelection[]) => arr.reduce((s, item) => s + (item[field] || 0), 0);
     return sumArr(normaliseSelectionArray(sel.carb)) + sumArr(normaliseSelectionArray(sel.protein)) + sumArr(normaliseSelectionArray(sel.fat));

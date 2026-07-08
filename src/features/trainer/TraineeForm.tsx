@@ -398,6 +398,7 @@ export function TraineeForm() {
               <div dir="rtl" className="min-w-0 flex-1 text-right">
                 <p className="text-sm font-bold leading-snug text-amber-800 whitespace-normal break-words">מתאמן עסוק / סטודנט ⏱️</p>
                 <p className="mt-1 text-xs leading-relaxed text-amber-600 whitespace-normal break-words">(המערכת תעדיף לשבץ מאכלים מהירים וללא בישול כמו כריכים, מעדנים, פריכיות וכו')</p>
+              </div>
             </label>
 
             {/* Meal Count */}
