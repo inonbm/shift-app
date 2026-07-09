@@ -1,4 +1,4 @@
-import { CheckCheck, Edit2, Loader2, Plus, Search, Sparkles, Utensils, X } from 'lucide-react';
+import { CheckCheck, Edit2, Loader2, Plus, Search, Sparkles, Star, Utensils, X } from 'lucide-react';
 import { MEASUREMENT_UNIT_LABELS } from '../../../types';
 import type { Food, GeneratedMeal, MealFoodOption } from '../../../types';
 import type { AddForms, FoodSearch, MealCategory, MealEdit, SetState } from './types';
@@ -22,6 +22,7 @@ interface DietTabProps {
   handleUpdateItemAmount: (mealId: string, category: MealCategory, foodId: string, newGrams: number) => void;
   handleRemoveItem: (mealId: string, category: MealCategory, foodId: string) => void;
   handleAddItem: (mealId: string, category: MealCategory) => void;
+  handleSetPrimary: (mealId: string, category: MealCategory, foodId: string) => void;
   getFoodsByCategory: (category: MealCategory, mealId: string) => Food[];
 }
 
@@ -44,6 +45,7 @@ export function DietTab({
   handleUpdateItemAmount,
   handleRemoveItem,
   handleAddItem,
+  handleSetPrimary,
   getFoodsByCategory,
 }: DietTabProps) {
   return (
@@ -169,6 +171,19 @@ export function DietTab({
                       {items.map((opt) => (
                         <li key={opt.food_id} className="flex items-center justify-between gap-1 bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-100">
                           <span className="flex-1 truncate flex items-center gap-1">
+                            {isEditingMenu && (
+                              <button
+                                onClick={() => handleSetPrimary(meal.id, col.key, opt.food_id)}
+                                className={`flex-shrink-0 p-0.5 rounded transition-colors ${
+                                  opt.is_primary
+                                    ? 'text-amber-500 hover:text-amber-600'
+                                    : 'text-slate-300 hover:text-amber-400'
+                                }`}
+                                title={opt.is_primary ? 'פריט מוביל' : 'הגדר כפריט מוביל'}
+                              >
+                                <Star size={13} className={opt.is_primary ? 'fill-amber-400' : ''} />
+                              </button>
+                            )}
                             •
                             {isEditingMenu ? (
                               <input

@@ -110,6 +110,8 @@ export function TraineeDetail() {
         activity_level: data.activity_level,
         goal: data.goal,
         is_busy_lifestyle: data.is_busy_lifestyle ?? false,
+        num_meals: data.num_meals ?? 4,
+        allow_multi_select: data.allow_multi_select ?? false,
       });
       setIsEditing(true);
     }
@@ -314,6 +316,20 @@ export function TraineeDetail() {
       ...prev,
       [mealId]: { ...prev[mealId], [category]: '' },
     }));
+  };
+
+  const handleSetPrimary = (mealId: string, category: 'protein_options' | 'carb_options' | 'fat_options', foodId: string) => {
+    setMenuEdits(prev => {
+      const meal = prev[mealId];
+      const updatedOptions = meal[category].map(opt => ({
+        ...opt,
+        is_primary: opt.food_id === foodId ? !opt.is_primary : false,
+      }));
+      return {
+        ...prev,
+        [mealId]: { ...meal, [category]: updatedOptions },
+      };
+    });
   };
 
   const handleUpdateItemAmount = (mealId: string, category: 'protein_options' | 'carb_options' | 'fat_options', foodId: string, newGrams: number) => {
@@ -534,6 +550,7 @@ export function TraineeDetail() {
               handleUpdateItemAmount={handleUpdateItemAmount}
               handleRemoveItem={handleRemoveItem}
               handleAddItem={handleAddItem}
+              handleSetPrimary={handleSetPrimary}
               getFoodsByCategory={getFoodsByCategory}
             />
           )}
