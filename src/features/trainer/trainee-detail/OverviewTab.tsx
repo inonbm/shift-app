@@ -152,6 +152,42 @@ export function OverviewTab({
             </div>
           </label>
 
+            {/* Meal Count Selector */}
+            <div className="mt-2">
+              <label className="block text-xs font-semibold text-slate-500 mb-1">מספר ארוחות ביום</label>
+              <div className="flex bg-slate-100 p-1 rounded-lg">
+                {[3, 4, 5, 6].map(count => (
+                  <button
+                    key={count}
+                    type="button"
+                    onClick={() => setEditForm(prev => ({ ...prev, num_meals: count }))}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
+                      ((editForm as any).num_meals || 4) === count
+                        ? 'bg-white text-purple-600 shadow-sm border border-slate-200'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    {count} ארוחות
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Multi-Select Toggle */}
+            <label dir="ltr" className="flex w-full h-auto items-center gap-3 rounded-xl border border-purple-200 bg-purple-50 p-3 cursor-pointer transition-colors hover:bg-purple-100 mt-2">
+              <input
+                type="checkbox"
+                name="allow_multi_select"
+                checked={(editForm as any).allow_multi_select ?? false}
+                onChange={handleCheckboxChange}
+                className="h-4 w-4 flex-shrink-0 rounded accent-purple-500 cursor-pointer"
+              />
+              <div dir="rtl" className="min-w-0 flex-1 text-right">
+                <p className="text-xs font-bold leading-snug text-purple-800 whitespace-normal break-words">אפשר בחירה מרובה 🔀</p>
+                <p className="mt-1 text-xs leading-relaxed text-purple-600 whitespace-normal break-words">המתאמן יוכל לבחור מספר מקורות מזון מאותה קטגוריה באותה ארוחה (למשל גם קוטג׳ וגם טונה)</p>
+              </div>
+            </label>
+
           <div className="flex gap-2 pt-2 border-t border-slate-100">
             <button
               onClick={handleCancelEdit}

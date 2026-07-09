@@ -91,17 +91,27 @@ export function DietView() {
   };
 
   const handleSelectOption = (mealId: string, category: keyof MealSelection, option: MealFoodOption) => {
-    // Optimistic local update — toggle in array
+    // Optimistic local update
     setSelections(prev => {
       const currentArr = prev[mealId]?.[category] || [];
       const exists = currentArr.some(o => o.food_id === option.food_id);
+      
+      let newArr: MealFoodOption[];
+      if (allowMultiSelect) {
+        // Multi-select: toggle in array
+        newArr = exists
+          ? currentArr.filter(o => o.food_id !== option.food_id)
+          : [...currentArr, option];
+      } else {
+        // Single-select (radio): replace or deselect
+        newArr = exists ? [] : [option];
+      }
+      
       return {
         ...prev,
         [mealId]: {
           ...(prev[mealId] || {}),
-          [category]: exists
-            ? currentArr.filter(o => o.food_id !== option.food_id)
-            : [...currentArr, option]
+          [category]: newArr
         }
       };
     });
@@ -168,6 +178,7 @@ export function DietView() {
   }
 
   const data = currentTrainee?.trainee_data;
+  const allowMultiSelect = data?.allow_multi_select ?? false;
 
   // Calculations for Progress Bar — sums ALL selected items per category
   const targetCalories = data?.goal_calories || 0;
@@ -263,8 +274,9 @@ export function DietView() {
       <div className={`p-4 rounded-xl border border-slate-100 ${bgClass}`}>
         <h4 className={`text-sm font-bold mb-3 border-b border-white/40 pb-2 ${labelClass}`}>{title}</h4>
         <div className="space-y-3">
-          {options.map((opt, i) => {
+          {[...options].sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)).map((opt, i) => {
             const isSelected = selectedIds.has(opt.food_id);
+            const isPrimary = opt.is_primary;
             return (
               <div key={i} className="relative">
                 <button 
@@ -274,14 +286,15 @@ export function DietView() {
                   `}
                 >
                   <div className={`w-1 h-full absolute right-0 top-0 ${isSelected ? 'bg-emerald-500' : labelClass.replace('text-', 'bg-')} opacity-60`} />
-                  {/* Checkbox indicator */}
-                  <div className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 transition-all
+                  {/* Radio/Checkbox indicator based on allow_multi_select */}
+                  <div className={`flex-shrink-0 w-5 h-5 ${allowMultiSelect ? 'rounded' : 'rounded-full'} border-2 flex items-center justify-center mt-0.5 transition-all
                     ${isSelected ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 bg-white'}
                   `}>
                     {isSelected && <CheckCircle2 size={14} />}
                   </div>
                   <div className="flex-1 pr-1">
                     <p className={`font-bold text-sm leading-tight ${isSelected ? 'text-emerald-700' : 'text-slate-800'}`}>
+                      {isPrimary && <span className="text-amber-500 ml-1">⭐</span>}
                       {opt.food_name}
                     </p>
                     <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-500 font-medium">
@@ -316,7 +329,8 @@ export function DietView() {
           {options.length === 0 && (
             <p className="text-xs text-slate-400 italic">לא נבחרו מקורות</p>
           )}
-          {/* Add additional source button */}
+          {/* Add additional source button — only in multi-select mode */}
+          {allowMultiSelect && (
           <button
             onClick={() => {
               // Open swap modal in "add" mode — use the first option as reference for target macros
@@ -335,6 +349,7 @@ export function DietView() {
             <Plus size={14} />
             הוסף מקור נוסף
           </button>
+          )}
         </div>
       </div>
     );

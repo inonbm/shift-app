@@ -57,6 +57,7 @@ export interface TraineeData {
   can_delete_sessions?: boolean;
   num_meals?: number;
   dietary_preferences?: DietaryPreference[];
+  allow_multi_select?: boolean;
   updated_at: string;
 }
 
@@ -93,6 +94,7 @@ export interface MealFoodOption {
   carbs_g: number;
   fat_g: number;
   calories: number;
+  is_primary?: boolean;
 }
 
 export interface GeneratedMeal {

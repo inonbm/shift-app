@@ -28,6 +28,7 @@ interface CreateTraineeInput {
   fat_percentage?: number;
   num_meals?: number;
   dietary_preferences?: string[];
+  allow_multi_select?: boolean;
 }
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
@@ -405,6 +406,7 @@ serve(async (req) => {
       fat_percentage: fatPercentage,
       num_meals: input.num_meals ?? 4,
       dietary_preferences: input.dietary_preferences ?? [],
+      allow_multi_select: input.allow_multi_select ?? false,
       updated_at: new Date().toISOString(),
     };
 
