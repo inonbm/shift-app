@@ -22,6 +22,7 @@ interface DietTabProps {
   handleUpdateItemAmount: (mealId: string, category: MealCategory, foodId: string, newGrams: number) => void;
   handleRemoveItem: (mealId: string, category: MealCategory, foodId: string) => void;
   handleAddItem: (mealId: string, category: MealCategory) => void;
+  handleFoodSelect: (mealId: string, category: MealCategory, foodId: string) => void;
   handleSetPrimary: (mealId: string, category: MealCategory, foodId: string) => void;
   getFoodsByCategory: (category: MealCategory, mealId: string) => Food[];
 }
@@ -45,6 +46,7 @@ export function DietTab({
   handleUpdateItemAmount,
   handleRemoveItem,
   handleAddItem,
+  handleFoodSelect,
   handleSetPrimary,
   getFoodsByCategory,
 }: DietTabProps) {
@@ -232,13 +234,7 @@ export function DietTab({
                         </div>
                         <select
                           value={addForms[meal.id]?.[col.key]?.foodId || ''}
-                          onChange={e => setAddForms(prev => ({
-                            ...prev,
-                            [meal.id]: {
-                              ...prev[meal.id],
-                              [col.key]: { foodId: e.target.value, grams: prev[meal.id]?.[col.key]?.grams || 100 },
-                            },
-                          }))}
+                          onChange={e => handleFoodSelect(meal.id, col.key, e.target.value)}
                           className="w-full text-[11px] bg-slate-50 border border-slate-200 rounded px-2 py-1 outline-none focus:ring-1 focus:ring-amber-300"
                         >
                           <option value="">-- בחר מזון --</option>

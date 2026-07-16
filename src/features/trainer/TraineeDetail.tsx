@@ -290,6 +290,71 @@ export function TraineeDetail() {
     });
   };
 
+  /**
+   * Auto-calculates the required grams for a newly selected food based on the
+   * first item in the same category. The first item serves as the "reference":
+   * we compute how many grams of the new food are needed to match the primary
+   * macro contribution of the reference item.
+   */
+  const handleFoodSelect = (mealId: string, category: 'protein_options' | 'carb_options' | 'fat_options', foodId: string) => {
+    if (!foodId) {
+      // Cleared selection — reset form
+      setAddForms(prev => ({
+        ...prev,
+        [mealId]: { ...prev[mealId], [category]: { foodId: '', grams: 100 } },
+      }));
+      return;
+    }
+
+    const selectedFood = foods.find(f => f.id === foodId);
+    if (!selectedFood) {
+      setAddForms(prev => ({
+        ...prev,
+        [mealId]: { ...prev[mealId], [category]: { foodId, grams: 100 } },
+      }));
+      return;
+    }
+
+    // Determine which primary macro key to match based on category
+    const macroKeyMap = {
+      protein_options: 'protein_g' as const,
+      carb_options: 'carbs_g' as const,
+      fat_options: 'fat_g' as const,
+    };
+    const perFoodKeyMap = {
+      protein_options: 'protein_per_100g' as const,
+      carb_options: 'carbs_per_100g' as const,
+      fat_options: 'fats_per_100g' as const,
+    };
+
+    const edit = menuEdits[mealId];
+    const items = edit?.[category] ?? [];
+    const referenceItem = items[0];
+    const macroKey = macroKeyMap[category];
+    const perFoodKey = perFoodKeyMap[category];
+
+    let calculatedGrams = selectedFood.serving_size || 100; // default fallback
+
+    if (referenceItem && referenceItem[macroKey] > 0 && selectedFood[perFoodKey] > 0) {
+      // Target: match the primary macro grams of the reference item
+      const targetMacroGrams = referenceItem[macroKey];
+      const servingRef = selectedFood.serving_size || 100;
+      // macroPerUnit = selectedFood[perFoodKey] per servingRef
+      // units needed = targetMacroGrams / (selectedFood[perFoodKey] / servingRef)
+      const rawUnits = (targetMacroGrams * servingRef) / selectedFood[perFoodKey];
+      // Round to nearest integer for clean UX
+      calculatedGrams = Math.max(1, Math.round(rawUnits));
+    }
+
+    setAddForms(prev => ({
+      ...prev,
+      [mealId]: {
+        ...prev[mealId],
+        [category]: { foodId, grams: calculatedGrams },
+      },
+    }));
+  };
+
   const handleAddItem = (mealId: string, category: 'protein_options' | 'carb_options' | 'fat_options') => {
     const form = addForms[mealId]?.[category];
     if (!form?.foodId || !form?.grams || form.grams <= 0) return;
@@ -550,6 +615,7 @@ export function TraineeDetail() {
               handleUpdateItemAmount={handleUpdateItemAmount}
               handleRemoveItem={handleRemoveItem}
               handleAddItem={handleAddItem}
+              handleFoodSelect={handleFoodSelect}
               handleSetPrimary={handleSetPrimary}
               getFoodsByCategory={getFoodsByCategory}
             />
