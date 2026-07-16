@@ -198,8 +198,8 @@ export function DietView() {
   }, 0);
   const consumedFromFree = todaysTracking?.free_entries?.reduce((sum, entry) => sum + entry.calories, 0) || 0;
   const totalConsumed = consumedFromMeals + consumedFromFree;
-  const progressPercentage = targetCalories > 0 ? Math.min(100, Math.round((totalConsumed / targetCalories) * 100)) : 0;
-  const isOverTarget = totalConsumed > targetCalories;
+  const progressPercentage = targetCalories > 0 ? Math.round((totalConsumed / targetCalories) * 100) : 0;
+  const isOverTarget = totalConsumed > targetCalories && targetCalories > 0;
   
   // Macros — use profile targets (same source as summary cards) to ensure a single source of truth
   const targetProtein = data?.protein_grams || 0;
@@ -375,6 +375,23 @@ export function DietView() {
             style={{ width: `${Math.min(100, progressPercentage)}%` }}
           />
         </div>
+
+        {/* Overage Warning Banner */}
+        {isOverTarget && (
+          <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-3 animate-pulse">
+            <div className="bg-red-100 p-2 rounded-full text-red-500 flex-shrink-0">
+              <Flame size={20} />
+            </div>
+            <div className="text-right flex-1">
+              <p className="text-sm font-extrabold text-red-600">
+                חריגה מהיעד היומי — {progressPercentage}%
+              </p>
+              <p className="text-xs text-red-500 font-medium">
+                צרכת {Math.round(totalConsumed - targetCalories)} קלוריות מעל היעד. נסה לאזן בארוחות הבאות.
+              </p>
+            </div>
+          </div>
+        )}
         
         {/* Macro Progress Bars */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
